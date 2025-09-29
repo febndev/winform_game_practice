@@ -1,0 +1,17 @@
+# IDE
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+**/bin/
+**/obj/
+*.cache
+*.log
+
+# Rider/Resharper (있다면)
+.idea/
+_ReSharper.Caches/
