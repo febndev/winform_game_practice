@@ -14,21 +14,34 @@ namespace SpaceShooter
     public partial class Form1 : Form
     {
         WindowsMediaPlayer gameMedia; // 백그라운드 미디어 
-        WindowsMediaPlayer shootgMedia; 
+        WindowsMediaPlayer shootgMedia; // 총알 발사시 사운드
+        WindowsMediaPlayer explosion; // 적 파괴될 때 사운드 
 
+        // 적의 총알 
+        PictureBox[] enemiesMunition;
+        int enemiesMunitionSpeed;
+
+        // 배경용 별 
         PictureBox[] stars;
         int backgroundspeed;
         int playerSpeed;
 
         // 총알 
         PictureBox[] munitions;
-        int MunitionSpeed;
+        int munitionSpeed;
 
         //적 비행기 멤버 선언 
         PictureBox[] enemies;
         int enemiSpeed;
 
         Random rnd;
+
+        int score;
+        int level;
+        int difficulty;
+        bool pause;
+        bool gameIsOver;
+
         public Form1()
         {
             InitializeComponent();
@@ -36,13 +49,20 @@ namespace SpaceShooter
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            pause = false;
+            gameIsOver = false;
+            score = 0;
+            level = 1;
+            difficulty = 9; 
+
             backgroundspeed = 4;
             playerSpeed = 4;
-
             enemiSpeed = 4;
+            munitionSpeed = 20;
+            enemiesMunitionSpeed = 4;
 
-            MunitionSpeed = 20;
             munitions = new PictureBox[3];
+            
 
             //Load images
             Image munition = Image.FromFile(@"asserts\munition.png");
@@ -92,16 +112,19 @@ namespace SpaceShooter
             //Create WMP
             gameMedia = new WindowsMediaPlayer();
             shootgMedia = new WindowsMediaPlayer();
+            explosion = new WindowsMediaPlayer(); 
 
             // Load all songs 
             gameMedia.URL = "songs\\GameSong.mp3";
             shootgMedia.URL = "songs\\shoot.mp3";
+            explosion.URL = "songs\\boom.mp3"; 
 
             //Setup Songs settings 
             gameMedia.settings.setMode("loop", true);
             gameMedia.settings.volume = 5;
             shootgMedia.settings.volume = 1;
-            
+            explosion.settings.volume = 6;
+
             stars = new PictureBox[15];
             rnd = new Random();
 
@@ -122,6 +145,19 @@ namespace SpaceShooter
                 }
 
                 this.Controls.Add(stars[i]);
+            }
+
+            enemiesMunition = new PictureBox[10];
+
+            for (int i = 0; i < enemiesMunition.Length; i++)
+            {
+                enemiesMunition[i] = new PictureBox();
+                enemiesMunition[i].Size = new Size(2, 25);
+                enemiesMunition[i].Visible = false;
+                enemiesMunition[i].BackColor = Color.Yellow;
+                int x = rnd.Next(0, 10);
+                enemiesMunition[i].Location = new Point(enemies[x].Location.X, enemies[x].Location.Y - 20);
+                this.Controls.Add(enemiesMunition[i]);
             }
 
             // 배경음악 실행 
@@ -189,26 +225,52 @@ namespace SpaceShooter
             LeftMoveTimer.Stop();
             UpMoveTimer.Stop();
             DownMoveTimer.Stop();
+
+            if (e.KeyCode == Keys.Space)
+            {
+                if (!gameIsOver)
+                {
+                    if(pause)
+                    {
+                        StartTimers();
+                        label1.Visible = false;
+                        gameMedia.controls.play();
+                        pause = false;
+                    }
+                    else
+                    {
+                        label1.Location = new Point(this.Width/2 - 120, 150);
+                        label1.Text = "PAUSED";
+                        label1.Visible = true;
+                        gameMedia.controls.pause();
+                        StopTimers();
+                        pause = true;
+                    }
+                }
+            }
         }
 
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
-
-            if (e.KeyCode == Keys.Right)
+            // 게임오버 됐을때에는 player 움직이지 않도록
+            if (!pause)
             {
-                RightMoveTimer.Start();
-            }
-            if (e.KeyCode == Keys.Left)
-            {
-                LeftMoveTimer.Start();
-            }
-            if (e.KeyCode == Keys.Up)
-            {
-                UpMoveTimer.Start();
-            }
-            if (e.KeyCode == Keys.Down)
-            {
-                DownMoveTimer.Start();
+                if (e.KeyCode == Keys.Right)
+                {
+                    RightMoveTimer.Start();
+                }
+                if (e.KeyCode == Keys.Left)
+                {
+                    LeftMoveTimer.Start();
+                }
+                if (e.KeyCode == Keys.Up)
+                {
+                    UpMoveTimer.Start();
+                }
+                if (e.KeyCode == Keys.Down)
+                {
+                    DownMoveTimer.Start();
+                }
             }
         }
 
@@ -220,7 +282,9 @@ namespace SpaceShooter
                 if (munitions[i].Top > 0)
                 {
                     munitions[i].Visible = true;
-                    munitions[i].Top -= MunitionSpeed;
+                    munitions[i].Top -= munitionSpeed;
+
+                    Collision();
                 }
                 else
                 {
@@ -248,6 +312,124 @@ namespace SpaceShooter
                 }
             }
         }
+        private void Collision()
+        {
+            for (int i = 0; i < enemies.Length; i++)
+            {
+                if (munitions[0].Bounds.IntersectsWith(enemies[i].Bounds)
+                    || munitions[1].Bounds.IntersectsWith(enemies[i].Bounds)
+                    || munitions[2].Bounds.IntersectsWith(enemies[i].Bounds))
+                {
+                    explosion.controls.play();
+
+                    score += 1;
+                    scorelbl.Text = (score < 10) ? "0" + score.ToString() : score.ToString();
+
+                    if (score % 30 == 0)
+                    {
+                        level += 1;
+                        levellbl.Text = (level < 10) ? "0" + level.ToString() : level.ToString();
+
+                        if (enemiSpeed <= 10 && enemiesMunitionSpeed <= 10 && difficulty >= 0)
+                        {
+                            difficulty--;
+                            enemiSpeed++;
+                            enemiesMunitionSpeed++;
+                        }
+                        if (level == 10)
+                        {
+                            GameOver("YOU WIN!");
+                        }
+                    }
+
+                    enemies[i].Location = new Point((i + 1) * 50, -100);
+                }
+
+                if (Player.Bounds.IntersectsWith(enemies[i].Bounds))
+                {
+                    explosion.settings.volume = 30;
+                    explosion.controls.play();
+                    Player.Visible = false;
+                    GameOver("GameOver");
+                }
+            }
+        }
+        private void GameOver(String str)
+        {
+            label1.Text = str;
+            label1.Location = new Point(120, 120);
+            label1.Visible = true;
+            ReplayBtn.Visible = true;
+            ExitBtn.Visible = true;
+
+            gameMedia.controls.stop();
+            StopTimers();
+        }
+        // Stop Timers
+        private void StopTimers()
+        {
+            MoveBgTimer.Stop();
+            MoveEnemiesTimer.Stop();
+            MoveMunitionTimer.Stop();
+            EnemiesMunitionTimer.Stop();
+        }
+
+        //Start Timers 
+        private void StartTimers()
+        {
+            MoveBgTimer.Start();
+            MoveEnemiesTimer.Start();
+            MoveMunitionTimer.Start();
+            EnemiesMunitionTimer.Start();
+        }
+
+        private void EnemiesMunitionTimer_Tick(object sender, EventArgs e)
+        {
+            for (int i = 0; i < (enemiesMunition.Length - difficulty); i++)
+            {
+                if (enemiesMunition[i].Top < this.Height)
+                {
+                    enemiesMunition[i].Visible = true;
+                    enemiesMunition[i].Top += enemiesMunitionSpeed;
+
+                    CollisionWithEnemiesMunition();
+                }
+                else
+                {
+                    enemiesMunition[i].Visible = false;
+                    int x = rnd.Next(0, 10);
+                    enemiesMunition[i].Location = new Point(enemies[x].Location.X + 20, enemies[x].Location.Y + 30);
+                }
+            }
+        }
+
+        private void CollisionWithEnemiesMunition()
+        {
+            for (int i = 0; i < enemiesMunition.Length; i++)
+            {
+                if (enemiesMunition[i].Bounds.IntersectsWith(Player.Bounds))
+                {
+                    enemiesMunition[i].Visible = false;
+                    explosion.settings.volume = 30;
+                    explosion.controls.play();
+                    Player.Visible = false;
+                    GameOver("Game Over");
+                }
+            }
+        }
+
+        private void ReplayBtn_Click(object sender, EventArgs e)
+        {
+            this.Controls.Clear();
+            InitializeComponent();
+            Form1_Load(e, e);
+        }
+
+        private void ExitBtn_Click(object sender, EventArgs e)
+        {
+            Environment.Exit(1);
+        }
+
     }
 }
 
