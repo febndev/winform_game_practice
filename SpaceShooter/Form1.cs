@@ -64,14 +64,14 @@ namespace SpaceShooter
             munitions = new PictureBox[3];
 
             //Load images
-            Image munition = Image.FromFile(@"asserts\munition.png");
+            Image munition = Image.FromFile(@"assets\munition.png");
 
             // Load images for enemies 
-            Image enemi1 = Image.FromFile("asserts\\E1.png");
-            Image enemi2 = Image.FromFile("asserts\\E2.png");
-            Image enemi3 = Image.FromFile("asserts\\E3.png");
-            Image boss1 = Image.FromFile("asserts\\Boss1.png");
-            Image boss2 = Image.FromFile("asserts\\Boss2.png");
+            Image enemi1 = Image.FromFile("assets\\E1.png");
+            Image enemi2 = Image.FromFile("assets\\E2.png");
+            Image enemi3 = Image.FromFile("assets\\E3.png");
+            Image boss1 = Image.FromFile("assets\\Boss1.png");
+            Image boss2 = Image.FromFile("assets\\Boss2.png");
 
             enemies = new PictureBox[10];
 
