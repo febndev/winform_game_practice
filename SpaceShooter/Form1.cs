@@ -62,7 +62,6 @@ namespace SpaceShooter
             enemiesMunitionSpeed = 4;
 
             munitions = new PictureBox[3];
-            
 
             //Load images
             Image munition = Image.FromFile(@"asserts\munition.png");
@@ -191,7 +190,7 @@ namespace SpaceShooter
         {
             if (Player.Left > 10)
             {
-                Player.Left -= playerSpeed;
+                Player.Left -= playerSpeed; // player.Left값을 4씩 줄임. 왼쪽으로 이동하는 효과. 
             }
         }
 
