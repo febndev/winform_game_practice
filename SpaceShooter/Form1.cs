@@ -62,17 +62,17 @@ namespace SpaceShooter
             enemiesMunitionSpeed = 4;
 
             munitions = new PictureBox[3];
-            
+
 
             //Load images
-            Image munition = Image.FromFile(@"asserts\munition.png");
+            Image munition = SpaceShooter.Properties.Resources.munition;
 
             // Load images for enemies 
-            Image enemi1 = Image.FromFile("asserts\\E1.png");
-            Image enemi2 = Image.FromFile("asserts\\E2.png");
-            Image enemi3 = Image.FromFile("asserts\\E3.png");
-            Image boss1 = Image.FromFile("asserts\\Boss1.png");
-            Image boss2 = Image.FromFile("asserts\\Boss2.png");
+            Image enemi1 = SpaceShooter.Properties.Resources.E1;
+            Image enemi2 = SpaceShooter.Properties.Resources.E2;
+            Image enemi3 = SpaceShooter.Properties.Resources.E3;
+            Image boss1 = SpaceShooter.Properties.Resources.Boss1;
+            Image boss2 = SpaceShooter.Properties.Resources.Boss2;
 
             enemies = new PictureBox[10];
 
@@ -189,33 +189,33 @@ namespace SpaceShooter
 
         private void LeftMoveTimer_Tick(object sender, EventArgs e)
         {
-            if (Player.Left > 10)
+            if (player.Left > 10)
             {
-                Player.Left -= playerSpeed;
+                player.Left -= playerSpeed;
             }
         }
 
         private void RightMoveTimer_Tick(object sender, EventArgs e)
         {
-            if (Player.Right < 580)
+            if (player.Right < 580)
             {
-                Player.Left += playerSpeed;
+                player.Left += playerSpeed;
             }
         }
 
         private void DownMoveTimer_Tick(object sender, EventArgs e)
         {
-            if (Player.Top < 400)
+            if (player.Top < 400)
             {
-                Player.Top += playerSpeed;
+                player.Top += playerSpeed;
             }
         }
 
         private void UpMoveTimer_Tick(object sender, EventArgs e)
         {
-            if (Player.Top > 10)
+            if (player.Top > 10)
             {
-                Player.Top -= playerSpeed;
+                player.Top -= playerSpeed;
             }
         }
 
@@ -289,7 +289,7 @@ namespace SpaceShooter
                 else
                 {
                     munitions[i].Visible = false;
-                    munitions[i].Location = new Point(Player.Location.X + 20, Player.Location.Y - i * 30);
+                    munitions[i].Location = new Point(player.Location.X + 20, player.Location.Y - i * 30);
                 }
             }
         }
@@ -345,11 +345,11 @@ namespace SpaceShooter
                     enemies[i].Location = new Point((i + 1) * 50, -100);
                 }
 
-                if (Player.Bounds.IntersectsWith(enemies[i].Bounds))
+                if (player.Bounds.IntersectsWith(enemies[i].Bounds))
                 {
                     explosion.settings.volume = 30;
                     explosion.controls.play();
-                    Player.Visible = false;
+                    player.Visible = false;
                     GameOver("GameOver");
                 }
             }
@@ -407,12 +407,12 @@ namespace SpaceShooter
         {
             for (int i = 0; i < enemiesMunition.Length; i++)
             {
-                if (enemiesMunition[i].Bounds.IntersectsWith(Player.Bounds))
+                if (enemiesMunition[i].Bounds.IntersectsWith(player.Bounds))
                 {
                     enemiesMunition[i].Visible = false;
                     explosion.settings.volume = 30;
                     explosion.controls.play();
-                    Player.Visible = false;
+                    player.Visible = false;
                     GameOver("Game Over");
                 }
             }

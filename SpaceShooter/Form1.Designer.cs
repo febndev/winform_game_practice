@@ -35,7 +35,7 @@
             this.RightMoveTimer = new System.Windows.Forms.Timer(this.components);
             this.DownMoveTimer = new System.Windows.Forms.Timer(this.components);
             this.UpMoveTimer = new System.Windows.Forms.Timer(this.components);
-            this.Player = new System.Windows.Forms.PictureBox();
+            this.player = new System.Windows.Forms.PictureBox();
             this.MoveMunitionTimer = new System.Windows.Forms.Timer(this.components);
             this.MoveEnemiesTimer = new System.Windows.Forms.Timer(this.components);
             this.EnemiesMunitionTimer = new System.Windows.Forms.Timer(this.components);
@@ -46,7 +46,7 @@
             this.levellbl = new System.Windows.Forms.Label();
             this.scoreTitle = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            ((System.ComponentModel.ISupportInitialize)(this.Player)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.player)).BeginInit();
             this.SuspendLayout();
             // 
             // MoveBgTimer
@@ -75,15 +75,15 @@
             this.UpMoveTimer.Interval = 5;
             this.UpMoveTimer.Tick += new System.EventHandler(this.UpMoveTimer_Tick);
             // 
-            // Player
+            // player
             // 
-            this.Player.Image = global::SpaceShooter.Properties.Resources.player;
-            this.Player.Location = new System.Drawing.Point(260, 400);
-            this.Player.Name = "Player";
-            this.Player.Size = new System.Drawing.Size(50, 50);
-            this.Player.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.Player.TabIndex = 0;
-            this.Player.TabStop = false;
+            this.player.Image = global::SpaceShooter.Properties.Resources.player;
+            this.player.Location = new System.Drawing.Point(260, 400);
+            this.player.Name = "player";
+            this.player.Size = new System.Drawing.Size(50, 50);
+            this.player.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.player.TabIndex = 0;
+            this.player.TabStop = false;
             // 
             // MoveMunitionTimer
             // 
@@ -155,9 +155,9 @@
             this.levellbl.ForeColor = System.Drawing.Color.Gold;
             this.levellbl.Location = new System.Drawing.Point(529, 9);
             this.levellbl.Name = "levellbl";
-            this.levellbl.Size = new System.Drawing.Size(41, 29);
+            this.levellbl.Size = new System.Drawing.Size(37, 29);
             this.levellbl.TabIndex = 5;
-            this.levellbl.Text = "00";
+            this.levellbl.Text = "01";
             this.levellbl.TextAlign = System.Drawing.ContentAlignment.TopRight;
             // 
             // scoreTitle
@@ -195,7 +195,7 @@
             this.Controls.Add(this.label1);
             this.Controls.Add(this.ExitBtn);
             this.Controls.Add(this.ReplayBtn);
-            this.Controls.Add(this.Player);
+            this.Controls.Add(this.player);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximumSize = new System.Drawing.Size(600, 500);
             this.Name = "Form1";
@@ -203,7 +203,7 @@
             this.Load += new System.EventHandler(this.Form1_Load);
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyDown);
             this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyUp);
-            ((System.ComponentModel.ISupportInitialize)(this.Player)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.player)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -212,7 +212,7 @@
         #endregion
 
         private System.Windows.Forms.Timer MoveBgTimer;
-        private System.Windows.Forms.PictureBox Player;
+        private System.Windows.Forms.PictureBox player;
         private System.Windows.Forms.Timer LeftMoveTimer;
         private System.Windows.Forms.Timer RightMoveTimer;
         private System.Windows.Forms.Timer DownMoveTimer;
