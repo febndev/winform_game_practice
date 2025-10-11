@@ -155,9 +155,9 @@
             this.levellbl.ForeColor = System.Drawing.Color.Gold;
             this.levellbl.Location = new System.Drawing.Point(529, 9);
             this.levellbl.Name = "levellbl";
-            this.levellbl.Size = new System.Drawing.Size(41, 29);
+            this.levellbl.Size = new System.Drawing.Size(37, 29);
             this.levellbl.TabIndex = 5;
-            this.levellbl.Text = "00";
+            this.levellbl.Text = "01";
             this.levellbl.TextAlign = System.Drawing.ContentAlignment.TopRight;
             // 
             // scoreTitle

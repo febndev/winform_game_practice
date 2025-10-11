@@ -81,10 +81,10 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="asserts\player.png" />
+    <None Include="assets\player.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="bin\Debug\asserts\player.png" />
+    <None Include="bin\Debug\assets\player.png" />
   </ItemGroup>
   <ItemGroup>
     <COMReference Include="WMPLib">
