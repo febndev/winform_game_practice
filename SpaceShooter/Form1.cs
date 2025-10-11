@@ -429,7 +429,6 @@ namespace SpaceShooter
         {
             Environment.Exit(1);
         }
-
     }
 }
 
