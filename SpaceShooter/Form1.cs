@@ -42,11 +42,16 @@ namespace SpaceShooter
         bool pause;
         bool gameIsOver;
 
+        private readonly Client client;
         public Form1()
         {
             InitializeComponent();
         }
-
+        // 새로 추가한 생성자
+        public Form1(Client client) : this()
+        {
+            this.client = client;
+        }
         private void Form1_Load(object sender, EventArgs e)
         {
             pause = false;
