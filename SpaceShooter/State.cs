@@ -19,7 +19,7 @@ namespace SpaceShooter
     {
         public int X { get; set; }
         public int Y { get; set; }
-        public int health { get; set; }
+        public int Health { get; set; }
     }
 
 

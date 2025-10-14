@@ -136,7 +136,7 @@ namespace SpaceShooter
                 munitions[i].SizeMode = PictureBoxSizeMode.Zoom;
                 munitions[i].BorderStyle = BorderStyle.None;
                 // 스플릿 컨테이너 하기 전 코드
-                this.Controls.Add(munitions[i]);
+                // this.Controls.Add(munitions[i]);
                 // 스플릿 컨테이너 후 코드
                 splitContainer1.Panel1.Controls.Add(munitions[i]);
             }
@@ -191,7 +191,7 @@ namespace SpaceShooter
                 int x = rnd.Next(0, 10);
                 enemiesMunition[i].Location = new Point(enemies[x].Location.X, enemies[x].Location.Y - 20);
                 // 스플릿 컨테이너 하기 전 코드
-                this.Controls.Add(enemiesMunition[i]);
+                // this.Controls.Add(enemiesMunition[i]);
                 // 스플릿 컨테이너 후 코드
                 splitContainer1.Panel1.Controls.Add(enemiesMunition[i]);
             }
@@ -474,7 +474,7 @@ namespace SpaceShooter
             }
         }
 
-        private void ReplayBtn_Click(object sender, EventArgs e)
+        private async void ReplayBtn_Click(object sender, EventArgs e)
         {
             this.Controls.Clear();
             InitializeComponent();
@@ -486,9 +486,43 @@ namespace SpaceShooter
             Environment.Exit(1);
         }
 
-        private void SendStateTimer_Tick(object sender, EventArgs e)
+        private async void SendStateTimer_Tick(object sender, EventArgs e)
         {
-            //여기에 서버로 플레이어 상태 전송하는 코드 작성
+            if (client == null || client.Stream == null) return;
+
+            // 플레이어 상태 생성
+            var playerState = new Player
+            {
+                X = player.Left,
+                Y = player.Top,
+                Health = 100 // 예시, 필요하면 실제 체력으로
+            };
+
+            // 적 상태 생성
+            var enemyStates = new List<Enemy>();
+            for (int i = 0; i < enemies.Length; i++)
+            {
+                if (enemies[i].Visible)
+                {
+                    enemyStates.Add(new Enemy
+                    {
+                        Id = i,
+                        X = enemies[i].Left,
+                        Y = enemies[i].Top
+                    });
+                }
+            }
+
+            // 전체 State 객체 생성
+            var state = new State
+            {
+                Role = role,           // 1 또는 2
+                Player = playerState,
+                Enemies = enemyStates
+            };
+
+            // 서버로 전송
+            await Packet.SendStateAsync(client.Stream, state);
         }
     }
 }

@@ -13,6 +13,8 @@ namespace SpaceShooter
         private readonly string serverIP = "127.0.0.1";
         private readonly int port = 8080;
 
+        public NetworkStream Stream => stream; // 공개 프로퍼티
+
         // 비동기 연결
         public async Task ConnectAsync()
         {

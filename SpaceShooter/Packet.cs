@@ -21,7 +21,8 @@ namespace SpaceShooter
                 var json = JsonSerializer.Serialize(state); // 어떤건 string이고 어떤건 byte[]인데 그래서 var로 입력 
                 byte[] data = Encoding.UTF8.GetBytes(json);
                 // 데이터 길이를 먼저 전송 (4바이트)
-                byte[] lengthPrefix = BitConverter.GetBytes(data.Length);
+                int len = data.Length;
+                byte[] lengthPrefix = BitConverter.GetBytes(IPAddress.HostToNetworkOrder(len));
                 await stream.WriteAsync(lengthPrefix, 0, lengthPrefix.Length);
                 // 실제 데이터 전송
                 await stream.WriteAsync(data, 0, data.Length);
@@ -29,12 +30,33 @@ namespace SpaceShooter
             catch (Exception ex)
             {
                 Console.WriteLine($"패킷 전송 오류: {ex.Message}");
+                throw;
             }
+        }
+
+        // helper: 정확히 count 바이트 읽기
+        private static async Task<byte[]> ReadExactlyAsync(NetworkStream stream, int count)
+        {
+            byte[] buf = new byte[count];
+            int read = 0;
+            while (read < count)
+            {
+                int n = await stream.ReadAsync(buf, read, count - read);
+                if (n == 0) throw new Exception("원격에서 연결을 닫음");
+                read += n;
+            }
+            return buf;
         }
 
         public static async Task<State> ReceiveStateAsync(NetworkStream stream)
         {
-            // 여기서 파싱..? 
+            var lenBuf = await ReadExactlyAsync(stream, 4);
+            int netLen = BitConverter.ToInt32(lenBuf, 0);
+            int len = IPAddress.NetworkToHostOrder(netLen);
+            var payload = await ReadExactlyAsync(stream, len);
+            var json = Encoding.UTF8.GetString(payload);
+            var state = JsonSerializer.Deserialize<State>(json);
+            return state;
         }
 
     }

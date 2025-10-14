@@ -16,9 +16,17 @@ namespace SpaceShooterServer
         private TcpListener server = null;
         // private bool isRunning = false; 였는데 volatile이 뭐람.?
         private volatile bool isRunning = false;
+
         // 멀티쓰레드로 변경하면서 변수가 늘었음. 
         private readonly List<TcpClient> clients = new();
         private readonly object clientsLock = new();
+
+        // role -> TcpClient 매핑 (예: role 1 -> 클라이언트A, role 2 -> 클라이언트B)
+        // 이거 우선 수정해야하는데 붙여넣었음. 접속 순서대로 1p,2p 하든지 해야함.
+        private readonly Dictionary<int, TcpClient> roleClients = new();
+        private readonly object roleLock = new();
+
+
         // 생성자
         public Server()
         {
@@ -42,6 +50,7 @@ namespace SpaceShooterServer
             acceptThread.IsBackground = true;
             acceptThread.Start();
         }
+
         // 맨 마지막에 들어가는 서버 종료, 메서드 공부 해야함
         public void Stop()
         {
@@ -68,7 +77,6 @@ namespace SpaceShooterServer
             {
                 try
                 {
-
                     TcpClient client = server.AcceptTcpClient();
                     Console.WriteLine($"클라이언트 접속 : " +
                         $"{((IPEndPoint)client.Client.RemoteEndPoint).ToString()}");
