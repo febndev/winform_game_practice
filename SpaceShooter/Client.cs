@@ -25,6 +25,9 @@ namespace SpaceShooter
                 //Console.WriteLine("서버에 연결 성공!");
                 stream = client.GetStream();
 
+                // 패킷 수신 대기
+
+
                 // 테스트 메시지 전송
                 //string msg = "Hello Server!";
                 //byte[] data = Encoding.UTF8.GetBytes(msg);

@@ -21,7 +21,7 @@ namespace SpaceShooter
             // client.Connect();
 
             // 폼 생성
-            Form1 form = new Form1(client);
+            FormMain form = new FormMain(client);
 
             // 폼이 닫힐 때 클라이언트 정리
             form.FormClosed += (sender, e) =>

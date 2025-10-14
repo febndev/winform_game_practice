@@ -11,7 +11,7 @@ using WMPLib;
 
 namespace SpaceShooter
 {
-    public partial class Form1 : Form
+    public partial class FormMain : Form
     {
         WindowsMediaPlayer gameMedia; // 백그라운드 미디어 
         WindowsMediaPlayer shootgMedia; // 총알 발사시 사운드
@@ -43,12 +43,32 @@ namespace SpaceShooter
         bool gameIsOver;
 
         private readonly Client client;
-        public Form1()
+
+        // 플레이어에 따라서구분이 필요하니 서버로부터 가져올 예정 1 = player1 , 2 = player2 
+        private int role = 1;
+
+
+        public FormMain()
         {
             InitializeComponent();
+
+            // 폼에서 키 이벤트 받기
+            this.KeyPreview = true;
+            this.KeyDown += Form1_KeyDown;
+
+            // 패널 포커스 허용
+            splitContainer1.Panel1.TabStop = true;
+            splitContainer1.Panel2.TabStop = true;
+
+            // 시작 시 패널 포커스 설정
+            //if (role == 1)
+            //    splitContainer1.Panel1.Focus();
+            //else if (role == 2)
+            //    splitContainer1.Panel2.Focus();
+
         }
         // 새로 추가한 생성자
-        public Form1(Client client) : this()
+        public FormMain(Client client) : this()
         {
             this.client = client;
         }
@@ -89,7 +109,10 @@ namespace SpaceShooter
                 enemies[i].SizeMode = PictureBoxSizeMode.Zoom;
                 enemies[i].BorderStyle = BorderStyle.None;
                 enemies[i].Visible = false; // 게임하는 사람이 처음부터 볼 필요 없으니 우선 false로 한다고 함. 
-                this.Controls.Add(enemies[i]);
+                // 스플릿 컨테이너 하기 전 코드
+                // this.Controls.Add(enemies[i]);
+                // 스플릿 컨테이너 후 코드
+                splitContainer1.Panel1.Controls.Add(enemies[i]);
                 enemies[i].Location = new Point((i + 1) * 50, -50); // 이 위치는 화면 밖 위 쪽에서 시작. 
             }
 
@@ -112,7 +135,10 @@ namespace SpaceShooter
                 munitions[i].Image = munition;
                 munitions[i].SizeMode = PictureBoxSizeMode.Zoom;
                 munitions[i].BorderStyle = BorderStyle.None;
+                // 스플릿 컨테이너 하기 전 코드
                 this.Controls.Add(munitions[i]);
+                // 스플릿 컨테이너 후 코드
+                splitContainer1.Panel1.Controls.Add(munitions[i]);
             }
             //Create WMP
             gameMedia = new WindowsMediaPlayer();
@@ -148,8 +174,10 @@ namespace SpaceShooter
                     stars[i].Size = new Size(3, 3);
                     stars[i].BackColor = Color.DarkGray;
                 }
-
-                this.Controls.Add(stars[i]);
+                // 스플릿 컨테이너 하기 전 코드 
+                // this.Controls.Add(stars[i]);
+                // 스플릿 컨테이너 후 코드
+                splitContainer1.Panel1.Controls.Add(stars[i]);
             }
 
             enemiesMunition = new PictureBox[10];
@@ -162,7 +190,10 @@ namespace SpaceShooter
                 enemiesMunition[i].BackColor = Color.Yellow;
                 int x = rnd.Next(0, 10);
                 enemiesMunition[i].Location = new Point(enemies[x].Location.X, enemies[x].Location.Y - 20);
+                // 스플릿 컨테이너 하기 전 코드
                 this.Controls.Add(enemiesMunition[i]);
+                // 스플릿 컨테이너 후 코드
+                splitContainer1.Panel1.Controls.Add(enemiesMunition[i]);
             }
 
             // 배경음악 실행 
@@ -257,24 +288,44 @@ namespace SpaceShooter
 
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
-            // 게임오버 됐을때에는 player 움직이지 않도록
+            // 게임오버 됐을때에는 player 움직이지 않도록 해야하니까 pause 체크 
             if (!pause)
             {
-                if (e.KeyCode == Keys.Right)
+                if (role == 1) // player1
                 {
-                    RightMoveTimer.Start();
+                    if (e.KeyCode == Keys.Right)
+                        RightMoveTimer.Start();
+                    if (e.KeyCode == Keys.Left)
+                    {
+                        LeftMoveTimer.Start();
+                    }
+                    if (e.KeyCode == Keys.Up)
+                    {
+                        UpMoveTimer.Start();
+                    }
+                    if (e.KeyCode == Keys.Down)
+                    {
+                        DownMoveTimer.Start();
+                    }
                 }
-                if (e.KeyCode == Keys.Left)
+                else if (role == 2) // player2
                 {
-                    LeftMoveTimer.Start();
-                }
-                if (e.KeyCode == Keys.Up)
-                {
-                    UpMoveTimer.Start();
-                }
-                if (e.KeyCode == Keys.Down)
-                {
-                    DownMoveTimer.Start();
+                    if (e.KeyCode == Keys.Right)
+                    {
+                        RightMoveTimer.Start();
+                    }
+                    if (e.KeyCode == Keys.Left)
+                    {
+                        LeftMoveTimer.Start();
+                    }
+                    if (e.KeyCode == Keys.Up)
+                    {
+                        UpMoveTimer.Start();
+                    }
+                    if (e.KeyCode == Keys.Down)
+                    {
+                        DownMoveTimer.Start();
+                    }
                 }
             }
         }
@@ -433,6 +484,11 @@ namespace SpaceShooter
         private void ExitBtn_Click(object sender, EventArgs e)
         {
             Environment.Exit(1);
+        }
+
+        private void SendStateTimer_Tick(object sender, EventArgs e)
+        {
+            //여기에 서버로 플레이어 상태 전송하는 코드 작성
         }
     }
 }

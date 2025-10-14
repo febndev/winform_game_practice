@@ -130,7 +130,7 @@ namespace SpaceShooterServer
             }
             finally
             {
-                lock (clientsLock) clients.Remove(client); // ★ 누수 방지
+                lock (clientsLock) clients.Remove(client); // 누수 방지, 리스트에서 제거
                 Console.WriteLine("클라이언트 연결 종료");
             }
         }
