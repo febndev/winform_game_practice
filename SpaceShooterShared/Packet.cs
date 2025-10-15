@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Net.Sockets;
-using System.Text.Json;
+using Newtonsoft.Json;
 using System.Net;
 
 
-namespace SpaceShooter
+namespace SpaceShooterShared
 {
     public static class Packet
     {
@@ -18,7 +18,7 @@ namespace SpaceShooter
             try
             {
                 // State 객체를 JSON 문자열로 직렬화
-                var json = JsonSerializer.Serialize(state); // 어떤건 string이고 어떤건 byte[]인데 그래서 var로 입력 
+                var json = JsonConvert.SerializeObject(state); // 어떤건 string이고 어떤건 byte[]인데 그래서 var로 입력 
                 byte[] data = Encoding.UTF8.GetBytes(json);
                 // 데이터 길이를 먼저 전송 (4바이트)
                 int len = data.Length;
@@ -26,6 +26,8 @@ namespace SpaceShooter
                 await stream.WriteAsync(lengthPrefix, 0, lengthPrefix.Length);
                 // 실제 데이터 전송
                 await stream.WriteAsync(data, 0, data.Length);
+                await stream.FlushAsync().ConfigureAwait(false);
+
             }
             catch (Exception ex)
             {
@@ -55,7 +57,7 @@ namespace SpaceShooter
             int len = IPAddress.NetworkToHostOrder(netLen);
             var payload = await ReadExactlyAsync(stream, len);
             var json = Encoding.UTF8.GetString(payload);
-            var state = JsonSerializer.Deserialize<State>(json);
+            var state = JsonConvert.DeserializeObject<State>(json);
             return state;
         }
 

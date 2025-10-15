@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using SpaceShooterShared;
 using WMPLib;
 
 namespace SpaceShooter
@@ -65,15 +66,30 @@ namespace SpaceShooter
             //    splitContainer1.Panel1.Focus();
             //else if (role == 2)
             //    splitContainer1.Panel2.Focus();
+            //client.OnStateReceived += Client_OnStateReceived;
+
 
         }
         // 새로 추가한 생성자
         public FormMain(Client client) : this()
         {
             this.client = client;
+           // client.OnStateReceived += Client_OnStateReceived;
+
+
+            // 서버에서 role 값을 가져온 뒤 포커스 지정
+            if (role == 1)
+                splitContainer1.Panel1.Focus();
+            else
+                splitContainer1.Panel2.Focus();
+
+            // 연결 후 수신 루프 시작
+            _ = Task.Run(() => StartReceivingLoop());
         }
         private void Form1_Load(object sender, EventArgs e)
         {
+            //await client.ConnectAsync();
+
             pause = false;
             gameIsOver = false;
             score = 0;
@@ -523,6 +539,57 @@ namespace SpaceShooter
 
             // 서버로 전송
             await Packet.SendStateAsync(client.Stream, state);
+        }
+
+        // 서버에서 받은 State를 UI에 반영
+        public void UpdatePictureBox(State state)
+        {
+            if (state == null || state.Player == null) return;
+
+            if (state.Role == 2)
+            {
+                player2.Left = state.Player.X;
+                player2.Top = state.Player.Y;
+            }
+            else if (state.Role == 1)
+            {
+                player.Left = state.Player.X;
+                player.Top = state.Player.Y;
+            }
+        }
+
+        private async Task StartReceivingLoop()
+        {
+            while (true)
+            {
+                try
+                {
+                    State state = await Packet.ReceiveStateAsync(client.Stream);
+                    if (state != null)
+                        break;
+                    //CurrentState = state;
+                    //OnStateReceived?.Invoke(state);
+                }
+                catch
+                {
+                    break;
+                }
+            }
+        }
+
+
+        private void Client_OnStateReceived(State state)
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action(() => Client_OnStateReceived(state)));
+                return;
+            }
+
+            // UI 업데이트 (예: role 기반 PictureBox 이동)
+            if (state?.Player == null) return;
+            if (state.Role == 1) { player.Left = state.Player.X; player.Top = state.Player.Y; }
+            else if (state.Role == 2) { player2.Left = state.Player.X; player2.Top = state.Player.Y; }
         }
     }
 }

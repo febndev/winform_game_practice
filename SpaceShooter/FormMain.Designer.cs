@@ -46,11 +46,13 @@
             this.label1 = new System.Windows.Forms.Label();
             this.ExitBtn = new System.Windows.Forms.Button();
             this.ReplayBtn = new System.Windows.Forms.Button();
-            this.player = new System.Windows.Forms.PictureBox();
             this.SendStateTimer = new System.Windows.Forms.Timer(this.components);
+            this.player2 = new System.Windows.Forms.PictureBox();
+            this.player = new System.Windows.Forms.PictureBox();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.player2)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.player)).BeginInit();
             this.SuspendLayout();
             // 
@@ -107,6 +109,7 @@
             // 
             // splitContainer1.Panel1
             // 
+            this.splitContainer1.Panel1.Controls.Add(this.player2);
             this.splitContainer1.Panel1.Controls.Add(this.levelTitle);
             this.splitContainer1.Panel1.Controls.Add(this.scoreTitle);
             this.splitContainer1.Panel1.Controls.Add(this.levellbl);
@@ -199,20 +202,30 @@
             this.ReplayBtn.UseVisualStyleBackColor = true;
             this.ReplayBtn.Visible = false;
             // 
+            // SendStateTimer
+            // 
+            this.SendStateTimer.Enabled = true;
+            this.SendStateTimer.Tick += new System.EventHandler(this.SendStateTimer_Tick);
+            // 
+            // player2
+            // 
+            this.player2.Image = global::SpaceShooter.Properties.Resources.player2;
+            this.player2.Location = new System.Drawing.Point(369, 401);
+            this.player2.Name = "player2";
+            this.player2.Size = new System.Drawing.Size(50, 50);
+            this.player2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.player2.TabIndex = 16;
+            this.player2.TabStop = false;
+            // 
             // player
             // 
             this.player.Image = global::SpaceShooter.Properties.Resources.player;
-            this.player.Location = new System.Drawing.Point(267, 401);
+            this.player.Location = new System.Drawing.Point(154, 401);
             this.player.Name = "player";
             this.player.Size = new System.Drawing.Size(50, 50);
             this.player.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.player.TabIndex = 8;
             this.player.TabStop = false;
-            // 
-            // SendStateTimer
-            // 
-            this.SendStateTimer.Enabled = true;
-            this.SendStateTimer.Tick += new System.EventHandler(this.SendStateTimer_Tick);
             // 
             // FormMain
             // 
@@ -232,6 +245,7 @@
             this.splitContainer1.Panel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
             this.splitContainer1.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.player2)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.player)).EndInit();
             this.ResumeLayout(false);
 
@@ -257,6 +271,7 @@
         private System.Windows.Forms.Button ReplayBtn;
         private System.Windows.Forms.PictureBox player;
         private System.Windows.Forms.Timer SendStateTimer;
+        private System.Windows.Forms.PictureBox player2;
     }
 }
 

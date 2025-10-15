@@ -36,6 +36,9 @@
     <Reference Include="Microsoft.Bcl.AsyncInterfaces, Version=9.0.0.9, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.Bcl.AsyncInterfaces.9.0.9\lib\net462\Microsoft.Bcl.AsyncInterfaces.dll</HintPath>
     </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
@@ -77,8 +80,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Packet.cs" />
-    <Compile Include="State.cs" />
     <Compile Include="Client.cs" />
     <Compile Include="FormMain.cs">
       <SubType>Form</SubType>
@@ -172,6 +173,15 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="bin\Debug\assets\munition.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SpaceShooterShared\SpaceShooterShared.csproj">
+      <Project>{a87874b2-74e4-4a2e-b5ac-ddcc8856e0f1}</Project>
+      <Name>SpaceShooterShared</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="bin\Debug\assets\player2.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
