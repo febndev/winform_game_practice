@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using WMPLib;
+using SpaceShooterShared;
 
 namespace SpaceShooter
 {
@@ -15,78 +16,253 @@ namespace SpaceShooter
     {
         WindowsMediaPlayer gameMedia; // 백그라운드 미디어 
         WindowsMediaPlayer shootgMedia; // 총알 발사시 사운드
-        WindowsMediaPlayer explosion; // 적 파괴될 때 사운드 
+        WindowsMediaPlayer explosionMedia; // 적 파괴될 때 사운드 
 
-        // 적의 총알 
-        PictureBox[] enemiesMunition;
-        int enemiesMunitionSpeed;
+        // --- 게임 오브젝트 (패널별) ---
+        // 디자이너에 올려둔 player1, player2 존재 (Name: player1, player2)
+        private PictureBox myPlayer;         // 내 화면의 플레이어 (디자이너의 player1/2 중 하나)
+        private PictureBox opponentPlayer;   // 상대 화면의 플레이어
 
-        // 배경용 별 
-        PictureBox[] stars;
-        int backgroundspeed;
-        int playerSpeed;
+        private Dictionary<int, PictureBox> myEnemies = new Dictionary<int, PictureBox>();
+        private Dictionary<int, PictureBox> opponentEnemies = new Dictionary<int, PictureBox>();
 
-        // 총알 
-        PictureBox[] munitions;
-        int munitionSpeed;
+        private PictureBox[] myMunitions;
+        private PictureBox[] opponentMunitions;
 
-        //적 비행기 멤버 선언 
-        PictureBox[] enemies;
-        int enemiSpeed;
+        private PictureBox[] myStars;
+        private PictureBox[] opponentStars;
+
+        // (선택) 적이 발사하는 총알(패널별)
+        private PictureBox[] myEnemiesMunition;
+        private PictureBox[] opponentEnemiesMunition;
+
+        // --- 게임 파라미터 ---
+        int enemiesMunitionSpeed = 4;
+        int backgroundspeed = 4;
+        int playerSpeed = 4;
+        int munitionSpeed = 20;
+        int enemiSpeed = 4;
 
         Random rnd;
 
-        int score;
-        int level;
-        int difficulty;
+        int score = 0;
+        int level = 1;
+        int difficulty = 9;
         bool pause;
-        bool gameIsOver;
+        bool gameIsOver = false;
 
+        // --- 네트워크 --- 
         private readonly Client client;
-
-        // 플레이어에 따라서구분이 필요하니 서버로부터 가져올 예정 1 = player1 , 2 = player2 
         private int role = 1;
+        private bool focusSet = false;
+       
+        // 예전 생성자 코드 
+        //public FormMain()
+        //{
+        //    InitializeComponent();
 
+        //    // 폼에서 키 이벤트 받기
+        //    this.KeyPreview = true;
+        //    this.KeyDown += Form1_KeyDown;
+        //    this.KeyUp += Form1_KeyUp;
 
-        public FormMain()
+        //    // 패널 포커스 허용
+        //    splitContainer1.Panel1.TabStop = true;
+        //    splitContainer1.Panel2.TabStop = true;
+
+        //}
+        // 새로 추가한 생성자
+        public FormMain(Client clientInstance, int assignedRole)
         {
             InitializeComponent();
 
+            client = clientInstance;
+            role = assignedRole;
             // 폼에서 키 이벤트 받기
             this.KeyPreview = true;
             this.KeyDown += Form1_KeyDown;
+            this.KeyUp += Form1_KeyUp;
 
             // 패널 포커스 허용
             splitContainer1.Panel1.TabStop = true;
             splitContainer1.Panel2.TabStop = true;
 
-            // 시작 시 패널 포커스 설정
-            //if (role == 1)
-            //    splitContainer1.Panel1.Focus();
-            //else if (role == 2)
-            //    splitContainer1.Panel2.Focus();
+            // 최소 초기값 세팅 
+            rnd = new Random();
 
-        }
-        // 새로 추가한 생성자
-        public FormMain(Client client) : this()
-        {
-            this.client = client;
+            this.Load += Form1_Load;
+            this.FormClosing += FormMain_FormClosing;
+
+            // 연결 후 수신 루프 시작
+            // _ = Task.Run(() => StartReceivingLoop());
         }
         private void Form1_Load(object sender, EventArgs e)
         {
-            pause = false;
-            gameIsOver = false;
-            score = 0;
-            level = 1;
-            difficulty = 9; 
 
-            backgroundspeed = 4;
-            playerSpeed = 4;
-            enemiSpeed = 4;
-            munitionSpeed = 20;
-            enemiesMunitionSpeed = 4;
+            // myPanel / opponentPanel 결정 (role 기준)
+            Panel myPanel = (role == 1) ? splitContainer1.Panel1 : splitContainer1.Panel2;
+            Panel opponentPanel = (role == 1) ? splitContainer1.Panel2 : splitContainer1.Panel1;
 
-            munitions = new PictureBox[3];
+            // 디자이너에 올려둔 player1/player2의 Parent를 적절히 설정 (이미 Form 디자이너에 존재)
+            // player1, player2 컨트롤 이름은 디자이너와 동일해야 합니다.
+            // (Designer에서 `player1` `player2` 가 존재하지 않으면 NullRef 발생)
+            myPlayer = (role == 1) ? player1 : player2;
+            opponentPlayer = (role == 1) ? player2 : player1;
+
+            // 부모 패널로 배치 (안정적: Load 이벤트에서 진행)
+            myPlayer.Parent = myPanel;
+            opponentPlayer.Parent = opponentPanel;
+
+            // 미디어 초기화 (파일 경로는 프로젝트에 맞게 조정)
+            InitMediaPlayers();
+
+            // 패널별 게임 오브젝트 초기화 (총알, 별, 적 총알)
+            InitGameObjects(myPanel, opponentPanel);
+
+            // 포커스 한 번 설정
+            myPanel.Focus();
+            focusSet = true;
+
+            // 수신 루프 시작 (폼이 완전히 로드된 뒤 시작)
+            if (client != null)
+                _ = Task.Run(() => StartReceivingLoop());
+        }
+        private void InitMediaPlayers()
+        {
+            gameMedia = new WindowsMediaPlayer();
+            shootgMedia = new WindowsMediaPlayer();
+            explosionMedia = new WindowsMediaPlayer();
+
+            gameMedia.URL = "songs\\GameSong.mp3";
+            shootgMedia.URL = "songs\\shoot.mp3";
+            explosionMedia.URL = "songs\\boom.mp3";
+
+            gameMedia.settings.setMode("loop", true);
+            gameMedia.settings.volume = 5;
+            shootgMedia.settings.volume = 1;
+            explosionMedia.settings.volume = 6;
+
+            gameMedia.controls.play(); 
+        }
+
+        private void InitGameObjects(Panel myPanel, Panel opponentPanel)
+        {
+            // --- 별들 (배경) ---
+            myStars = new PictureBox[15];
+            opponentStars = new PictureBox[15];
+            for (int i = 0; i < 15; i++)
+            {
+                myStars[i] = new PictureBox
+                {
+                    BorderStyle = BorderStyle.None,
+                    Location = new Point(rnd.Next(20, 570), rnd.Next(-10, 400)),
+                    BackColor = (i % 2 == 0) ? Color.DarkGray : Color.Wheat,
+                    Size = (i % 2 == 0) ? new Size(3, 3) : new Size(2, 2),
+                    Image = SpaceShooter.Properties.Resources.star2,
+                    Parent = myPanel
+                };
+                opponentStars[i] = new PictureBox
+                {
+                    BorderStyle = BorderStyle.None,
+                    Location = new Point(rnd.Next(20, 570), rnd.Next(-10, 400)),
+                    BackColor = (i % 2 == 0) ? Color.DarkGray : Color.Wheat,
+                    Size = (i % 2 == 0) ? new Size(3, 3) : new Size(2, 2),
+                    Image = SpaceShooter.Properties.Resources.star2,
+                    Parent = opponentPanel
+                };
+            }
+
+
+            // --- 내/상대 총알 ---
+            myMunitions = new PictureBox[3];
+            opponentMunitions = new PictureBox[3];
+            for (int i = 0; i < 3; i++)
+            {
+                myMunitions[i] = new PictureBox
+                {
+                    Size = new Size(8, 8),
+                    Image = SpaceShooter.Properties.Resources.munition,
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    BorderStyle = BorderStyle.None,
+                    Visible = false,
+                    Parent = myPanel
+                };
+                opponentMunitions[i] = new PictureBox
+                {
+                    Size = new Size(8, 8),
+                    Image = SpaceShooter.Properties.Resources.munition,
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    BorderStyle = BorderStyle.None,
+                    Visible = false,
+                    Parent = opponentPanel
+                };
+            }
+            // 이코드랑 밑에 코드랑 둘중택일해야함 
+            myEnemiesMunition = new PictureBox[10];
+
+            for (int i = 0; i < myEnemiesMunition.Length; i++)
+            {
+                myEnemiesMunition[i] = new PictureBox();
+                myEnemiesMunition[i].Size = new Size(2, 25);
+                myEnemiesMunition[i].Visible = false;
+                myEnemiesMunition[i].BackColor = Color.Yellow;
+                int x = rnd.Next(0, 10);
+                myEnemiesMunition[i].Location = new Point(enemies[x].Location.X, enemies[x].Location.Y - 20);
+                // 스플릿 컨테이너 하기 전 코드
+                // this.Controls.Add(enemiesMunition[i]);
+                // 스플릿 컨테이너 후 코드
+                splitContainer1.Panel1.Controls.Add(myEnemiesMunition[i]);
+            }
+            // --- 적 총알 (선택) ---
+            myEnemiesMunition = new PictureBox[10];
+            //opponentEnemiesMunition = new PictureBox[10];
+            for (int i = 0; i < 10; i++)
+            {
+                int x = rnd.Next(0, 10);
+                myEnemiesMunition[i] = new PictureBox
+                {
+                    Size = new Size(2, 25),
+                    BackColor = Color.Yellow,
+                    Visible = false,
+                    Location = new Point()//여기써야함
+
+                    Parent = myPanel
+                };
+
+                //opponentEnemiesMunition[i] = new PictureBox
+                //{
+                //    Size = new Size(2, 25),
+                //    BackColor = Color.Yellow,
+                //    Visible = false,
+                //    Parent = opponentPanel
+                //};
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
             //Load images
@@ -143,18 +319,18 @@ namespace SpaceShooter
             //Create WMP
             gameMedia = new WindowsMediaPlayer();
             shootgMedia = new WindowsMediaPlayer();
-            explosion = new WindowsMediaPlayer(); 
+            explosionMedia = new WindowsMediaPlayer(); 
 
             // Load all songs 
             gameMedia.URL = "songs\\GameSong.mp3";
             shootgMedia.URL = "songs\\shoot.mp3";
-            explosion.URL = "songs\\boom.mp3"; 
+            explosionMedia.URL = "songs\\boom.mp3"; 
 
             //Setup Songs settings 
             gameMedia.settings.setMode("loop", true);
             gameMedia.settings.volume = 5;
             shootgMedia.settings.volume = 1;
-            explosion.settings.volume = 6;
+            explosionMedia.settings.volume = 6;
 
             stars = new PictureBox[15];
             rnd = new Random();
@@ -225,33 +401,33 @@ namespace SpaceShooter
 
         private void LeftMoveTimer_Tick(object sender, EventArgs e)
         {
-            if (player.Left > 10)
+            if (player1.Left > 10)
             {
-                player.Left -= playerSpeed;
+                player1.Left -= playerSpeed;
             }
         }
 
         private void RightMoveTimer_Tick(object sender, EventArgs e)
         {
-            if (player.Right < 580)
+            if (player1.Right < 580)
             {
-                player.Left += playerSpeed;
+                player1.Left += playerSpeed;
             }
         }
 
         private void DownMoveTimer_Tick(object sender, EventArgs e)
         {
-            if (player.Top < 400)
+            if (player1.Top < 400)
             {
-                player.Top += playerSpeed;
+                player1.Top += playerSpeed;
             }
         }
 
         private void UpMoveTimer_Tick(object sender, EventArgs e)
         {
-            if (player.Top > 10)
+            if (player1.Top > 10)
             {
-                player.Top -= playerSpeed;
+                player1.Top -= playerSpeed;
             }
         }
 
@@ -345,7 +521,7 @@ namespace SpaceShooter
                 else
                 {
                     munitions[i].Visible = false;
-                    munitions[i].Location = new Point(player.Location.X + 20, player.Location.Y - i * 30);
+                    munitions[i].Location = new Point(player1.Location.X + 20, player1.Location.Y - i * 30);
                 }
             }
         }
@@ -376,7 +552,7 @@ namespace SpaceShooter
                     || munitions[1].Bounds.IntersectsWith(enemies[i].Bounds)
                     || munitions[2].Bounds.IntersectsWith(enemies[i].Bounds))
                 {
-                    explosion.controls.play();
+                    explosionMedia.controls.play();
 
                     score += 1;
                     scorelbl.Text = (score < 10) ? "0" + score.ToString() : score.ToString();
@@ -401,11 +577,11 @@ namespace SpaceShooter
                     enemies[i].Location = new Point((i + 1) * 50, -100);
                 }
 
-                if (player.Bounds.IntersectsWith(enemies[i].Bounds))
+                if (player1.Bounds.IntersectsWith(enemies[i].Bounds))
                 {
-                    explosion.settings.volume = 30;
-                    explosion.controls.play();
-                    player.Visible = false;
+                    explosionMedia.settings.volume = 30;
+                    explosionMedia.controls.play();
+                    player1.Visible = false;
                     GameOver("GameOver");
                 }
             }
@@ -463,12 +639,12 @@ namespace SpaceShooter
         {
             for (int i = 0; i < enemiesMunition.Length; i++)
             {
-                if (enemiesMunition[i].Bounds.IntersectsWith(player.Bounds))
+                if (enemiesMunition[i].Bounds.IntersectsWith(player1.Bounds))
                 {
                     enemiesMunition[i].Visible = false;
-                    explosion.settings.volume = 30;
-                    explosion.controls.play();
-                    player.Visible = false;
+                    explosionMedia.settings.volume = 30;
+                    explosionMedia.controls.play();
+                    player1.Visible = false;
                     GameOver("Game Over");
                 }
             }
@@ -493,8 +669,8 @@ namespace SpaceShooter
             // 플레이어 상태 생성
             var playerState = new Player
             {
-                X = player.Left,
-                Y = player.Top,
+                X = player1.Left,
+                Y = player1.Top,
                 Health = 100 // 예시, 필요하면 실제 체력으로
             };
 
@@ -523,6 +699,42 @@ namespace SpaceShooter
 
             // 서버로 전송
             await Packet.SendStateAsync(client.Stream, state);
+        }
+
+
+        // 서버에서 받은 State를 UI에 반영
+        public void UpdatePictureBox(State state)
+        {
+            //if (pictureBox1.InvokeRequired)
+            //{
+            //    pictureBox1.Invoke(new Action(() => UpdatePictureBox(state)));
+            //    return;
+            //}
+
+            //// 예: 플레이어 좌표
+            //pictureBox1.Left = state.PlayerX;
+            //pictureBox1.Top = state.PlayerY;
+
+            // 필요 시 적 좌표도 반영 가능
+            // pictureBoxEnemy.Left = state.EnemyX;
+            // pictureBoxEnemy.Top = state.EnemyY;
+        }
+
+        private async Task StartReceivingLoop()
+        {
+            while (true)
+            {
+                try
+                {
+                    State state = await Packet.ReceiveStateAsync(client.Stream);
+                    if (state != null)
+                        UpdatePictureBox(state);
+                }
+                catch
+                {
+                    break;
+                }
+            }
         }
     }
 }

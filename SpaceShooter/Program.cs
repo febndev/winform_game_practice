@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using SpaceShooterShared;
 
 namespace SpaceShooter
 {
@@ -21,7 +22,7 @@ namespace SpaceShooter
             // client.Connect();
 
             // 폼 생성
-            FormMain form = new FormMain(client);
+            FormMain form = new FormMain(client, 0);
 
             // 폼이 닫힐 때 클라이언트 정리
             form.FormClosed += (sender, e) =>

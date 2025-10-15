@@ -46,12 +46,15 @@
             this.label1 = new System.Windows.Forms.Label();
             this.ExitBtn = new System.Windows.Forms.Button();
             this.ReplayBtn = new System.Windows.Forms.Button();
-            this.player = new System.Windows.Forms.PictureBox();
+            this.player1 = new System.Windows.Forms.PictureBox();
+            this.player2 = new System.Windows.Forms.PictureBox();
             this.SendStateTimer = new System.Windows.Forms.Timer(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
+            this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.player)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.player1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.player2)).BeginInit();
             this.SuspendLayout();
             // 
             // MoveBgTimer
@@ -114,8 +117,12 @@
             this.splitContainer1.Panel1.Controls.Add(this.label1);
             this.splitContainer1.Panel1.Controls.Add(this.ExitBtn);
             this.splitContainer1.Panel1.Controls.Add(this.ReplayBtn);
-            this.splitContainer1.Panel1.Controls.Add(this.player);
+            this.splitContainer1.Panel1.Controls.Add(this.player1);
             this.splitContainer1.Panel1MinSize = 590;
+            // 
+            // splitContainer1.Panel2
+            // 
+            this.splitContainer1.Panel2.Controls.Add(this.player2);
             this.splitContainer1.Panel2MinSize = 590;
             this.splitContainer1.Size = new System.Drawing.Size(1184, 461);
             this.splitContainer1.SplitterDistance = 592;
@@ -199,15 +206,25 @@
             this.ReplayBtn.UseVisualStyleBackColor = true;
             this.ReplayBtn.Visible = false;
             // 
-            // player
+            // player1
             // 
-            this.player.Image = global::SpaceShooter.Properties.Resources.player;
-            this.player.Location = new System.Drawing.Point(267, 401);
-            this.player.Name = "player";
-            this.player.Size = new System.Drawing.Size(50, 50);
-            this.player.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.player.TabIndex = 8;
-            this.player.TabStop = false;
+            this.player1.Image = global::SpaceShooter.Properties.Resources.player;
+            this.player1.Location = new System.Drawing.Point(267, 401);
+            this.player1.Name = "player1";
+            this.player1.Size = new System.Drawing.Size(50, 50);
+            this.player1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.player1.TabIndex = 8;
+            this.player1.TabStop = false;
+            // 
+            // player2
+            // 
+            this.player2.Image = global::SpaceShooter.Properties.Resources.player2;
+            this.player2.Location = new System.Drawing.Point(267, 401);
+            this.player2.Name = "player2";
+            this.player2.Size = new System.Drawing.Size(50, 50);
+            this.player2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.player2.TabIndex = 9;
+            this.player2.TabStop = false;
             // 
             // SendStateTimer
             // 
@@ -230,9 +247,11 @@
             this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyUp);
             this.splitContainer1.Panel1.ResumeLayout(false);
             this.splitContainer1.Panel1.PerformLayout();
+            this.splitContainer1.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).EndInit();
             this.splitContainer1.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)(this.player)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.player1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.player2)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -255,8 +274,9 @@
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button ExitBtn;
         private System.Windows.Forms.Button ReplayBtn;
-        private System.Windows.Forms.PictureBox player;
+        private System.Windows.Forms.PictureBox player1;
         private System.Windows.Forms.Timer SendStateTimer;
+        private System.Windows.Forms.PictureBox player2;
     }
 }
 
