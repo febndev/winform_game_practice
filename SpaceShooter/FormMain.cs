@@ -83,10 +83,6 @@ namespace SpaceShooter
             this.KeyDown += Form1_KeyDown;
             this.KeyUp += Form1_KeyUp;
 
-            // 패널 포커스 허용
-            splitContainer1.Panel1.TabStop = true;
-            splitContainer1.Panel2.TabStop = true;
-
             // 최소 초기값 세팅 
             rnd = new Random();
 
@@ -104,8 +100,6 @@ namespace SpaceShooter
             Panel opponentPanel = (role == 1) ? splitContainer1.Panel2 : splitContainer1.Panel1;
 
             // 디자이너에 올려둔 player1/player2의 Parent를 적절히 설정 (이미 Form 디자이너에 존재)
-            // player1, player2 컨트롤 이름은 디자이너와 동일해야 합니다.
-            // (Designer에서 `player1` `player2` 가 존재하지 않으면 NullRef 발생)
             myPlayer = (role == 1) ? player1 : player2;
             opponentPlayer = (role == 1) ? player2 : player1;
 
@@ -124,8 +118,22 @@ namespace SpaceShooter
             focusSet = true;
 
             // 수신 루프 시작 (폼이 완전히 로드된 뒤 시작)
+            //if (client != null)
+            //    _ = Task.Run(() => StartReceivingLoop());
+
+            // --- 변경: Client에서 수신(읽기)을 담당하므로, 여기선 이벤트 등록만 함 ---
             if (client != null)
-                _ = Task.Run(() => StartReceivingLoop());
+            {
+                // 안전하게 UI 스레드로 마샬링하여 UpdateUI 호출
+                client.OnStateReceived += (state) =>
+                {
+                    if (this.IsDisposed) return;
+                    if (this.InvokeRequired)
+                        this.BeginInvoke(new Action(() => UpdateUI(state)));
+                    else
+                        UpdateUI(state);
+                };
+            }
         }
         private void InitMediaPlayers()
         {
@@ -145,6 +153,7 @@ namespace SpaceShooter
             gameMedia.controls.play(); 
         }
 
+        // [시작] 게임 UI 컨트롤 생성 
         private void InitGameObjects(Panel myPanel, Panel opponentPanel)
         {
             // --- 별들 (배경) ---
@@ -197,23 +206,79 @@ namespace SpaceShooter
                     Parent = opponentPanel
                 };
             }
-            // 이코드랑 밑에 코드랑 둘중택일해야함 
-            myEnemiesMunition = new PictureBox[10];
 
-            for (int i = 0; i < myEnemiesMunition.Length; i++)
+            // --- 내 패널의 적비행기 --- 
+            myEnemies = new Dictionary<int, PictureBox>();
+            opponentEnemies = new Dictionary<int, PictureBox>();
+            for (int i = 0; i < 10; i++)
             {
-                myEnemiesMunition[i] = new PictureBox();
-                myEnemiesMunition[i].Size = new Size(2, 25);
-                myEnemiesMunition[i].Visible = false;
-                myEnemiesMunition[i].BackColor = Color.Yellow;
-                int x = rnd.Next(0, 10);
-                myEnemiesMunition[i].Location = new Point(enemies[x].Location.X, enemies[x].Location.Y - 20);
-                // 스플릿 컨테이너 하기 전 코드
-                // this.Controls.Add(enemiesMunition[i]);
-                // 스플릿 컨테이너 후 코드
-                splitContainer1.Panel1.Controls.Add(myEnemiesMunition[i]);
+                var myEnemy = new PictureBox
+                {
+                    Size = new Size(40, 40),
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    BorderStyle = BorderStyle.None,
+                    Visible = false,
+                    Location = new Point((i + 1) * 50, -50),
+                    Parent = myPanel,
+                    Tag = i
+                };
+                myEnemies[i] = myEnemy;
             }
-            // --- 적 총알 (선택) ---
+            myEnemies[0].Image = SpaceShooter.Properties.Resources.Boss1;
+            myEnemies[1].Image = SpaceShooter.Properties.Resources.E2;
+            myEnemies[2].Image = SpaceShooter.Properties.Resources.E3;
+            myEnemies[3].Image = SpaceShooter.Properties.Resources.E3;
+            myEnemies[4].Image = SpaceShooter.Properties.Resources.E1;
+            myEnemies[5].Image = SpaceShooter.Properties.Resources.E3;
+            myEnemies[6].Image = SpaceShooter.Properties.Resources.E2;
+            myEnemies[7].Image = SpaceShooter.Properties.Resources.E3;
+            myEnemies[8].Image = SpaceShooter.Properties.Resources.E2;
+            myEnemies[9].Image = SpaceShooter.Properties.Resources.Boss2;
+
+            // --- 상대 패널의 적비행기 ---
+            for (int i = 0; i < 10; i++)
+            {
+                var oppEnemy = new PictureBox
+                {
+                    Size = new Size(40, 40),
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    BorderStyle = BorderStyle.None,
+                    Visible = false,
+                    Location = new Point((i + 1) * 50, -50),
+                    Parent = opponentPanel,
+                    Tag = i
+                };
+                opponentEnemies[i] = oppEnemy;
+            }
+            opponentEnemies[0].Image = SpaceShooter.Properties.Resources.Boss1;
+            opponentEnemies[1].Image = SpaceShooter.Properties.Resources.E2;
+            opponentEnemies[2].Image = SpaceShooter.Properties.Resources.E3;
+            opponentEnemies[3].Image = SpaceShooter.Properties.Resources.E3;
+            opponentEnemies[4].Image = SpaceShooter.Properties.Resources.E1;
+            opponentEnemies[5].Image = SpaceShooter.Properties.Resources.E3;
+            opponentEnemies[6].Image = SpaceShooter.Properties.Resources.E2;
+            opponentEnemies[7].Image = SpaceShooter.Properties.Resources.E3;
+            opponentEnemies[8].Image = SpaceShooter.Properties.Resources.E2;
+            opponentEnemies[9].Image = SpaceShooter.Properties.Resources.Boss2;
+
+
+            //// 이코드랑 밑에 코드랑 둘중택일해야함 
+            //myEnemiesMunition = new PictureBox[10];
+
+            //for (int i = 0; i < myEnemiesMunition.Length; i++)
+            //{
+            //    myEnemiesMunition[i] = new PictureBox();
+            //    myEnemiesMunition[i].Size = new Size(2, 25);
+            //    myEnemiesMunition[i].Visible = false;
+            //    myEnemiesMunition[i].BackColor = Color.Yellow;
+            //    int x = rnd.Next(0, 10);
+            //    myEnemiesMunition[i].Location = new Point(myEnemies[x].Location.X, myEnemies[x].Location.Y - 20);
+            //    // 스플릿 컨테이너 하기 전 코드
+            //    // this.Controls.Add(enemiesMunition[i]);
+            //    // 스플릿 컨테이너 후 코드
+            //    splitContainer1.Panel1.Controls.Add(myEnemiesMunition[i]);
+            //}
+            //---적 총알(선택)-- -
             myEnemiesMunition = new PictureBox[10];
             //opponentEnemiesMunition = new PictureBox[10];
             for (int i = 0; i < 10; i++)
@@ -224,11 +289,10 @@ namespace SpaceShooter
                     Size = new Size(2, 25),
                     BackColor = Color.Yellow,
                     Visible = false,
-                    Location = new Point()//여기써야함
-
+                    Location = new Point(myEnemies[x].Location.X, myEnemies[x].Location.Y - 20),//여기써야함
                     Parent = myPanel
                 };
-
+            }
                 //opponentEnemiesMunition[i] = new PictureBox
                 //{
                 //    Size = new Size(2, 25),
@@ -236,321 +300,29 @@ namespace SpaceShooter
                 //    Visible = false,
                 //    Parent = opponentPanel
                 //};
-            }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            //Load images
-            Image munition = SpaceShooter.Properties.Resources.munition;
-
-            // Load images for enemies 
-            Image enemi1 = SpaceShooter.Properties.Resources.E1;
-            Image enemi2 = SpaceShooter.Properties.Resources.E2;
-            Image enemi3 = SpaceShooter.Properties.Resources.E3;
-            Image boss1 = SpaceShooter.Properties.Resources.Boss1;
-            Image boss2 = SpaceShooter.Properties.Resources.Boss2;
-
-            enemies = new PictureBox[10];
-
-            // 적 비행기 초기화 
-            for (int i = 0; i < enemies.Length; i++)
-            {
-                enemies[i] = new PictureBox();
-                enemies[i].Size = new Size(40, 40);
-                enemies[i].SizeMode = PictureBoxSizeMode.Zoom;
-                enemies[i].BorderStyle = BorderStyle.None;
-                enemies[i].Visible = false; // 게임하는 사람이 처음부터 볼 필요 없으니 우선 false로 한다고 함. 
-                // 스플릿 컨테이너 하기 전 코드
-                // this.Controls.Add(enemies[i]);
-                // 스플릿 컨테이너 후 코드
-                splitContainer1.Panel1.Controls.Add(enemies[i]);
-                enemies[i].Location = new Point((i + 1) * 50, -50); // 이 위치는 화면 밖 위 쪽에서 시작. 
-            }
-
-            enemies[0].Image = boss1;
-            enemies[1].Image = enemi2;
-            enemies[2].Image = enemi3;
-            enemies[3].Image = enemi3;
-            enemies[4].Image = enemi1;
-            enemies[5].Image = enemi3;
-            enemies[6].Image = enemi2;
-            enemies[7].Image = enemi3;
-            enemies[8].Image = enemi2;
-            enemies[9].Image = boss2;
-
-
-            for (int i = 0; i<munitions.Length; i++)
-            {
-                munitions[i] = new PictureBox();
-                munitions[i].Size = new Size(8, 8);
-                munitions[i].Image = munition;
-                munitions[i].SizeMode = PictureBoxSizeMode.Zoom;
-                munitions[i].BorderStyle = BorderStyle.None;
-                // 스플릿 컨테이너 하기 전 코드
-                // this.Controls.Add(munitions[i]);
-                // 스플릿 컨테이너 후 코드
-                splitContainer1.Panel1.Controls.Add(munitions[i]);
-            }
-            //Create WMP
-            gameMedia = new WindowsMediaPlayer();
-            shootgMedia = new WindowsMediaPlayer();
-            explosionMedia = new WindowsMediaPlayer(); 
-
-            // Load all songs 
-            gameMedia.URL = "songs\\GameSong.mp3";
-            shootgMedia.URL = "songs\\shoot.mp3";
-            explosionMedia.URL = "songs\\boom.mp3"; 
-
-            //Setup Songs settings 
-            gameMedia.settings.setMode("loop", true);
-            gameMedia.settings.volume = 5;
-            shootgMedia.settings.volume = 1;
-            explosionMedia.settings.volume = 6;
-
-            stars = new PictureBox[15];
-            rnd = new Random();
-
-            for (int i = 0; i < stars.Length; i++)
-            {
-                stars[i] = new PictureBox();
-                stars[i].BorderStyle = BorderStyle.None;
-                stars[i].Location = new Point(rnd.Next(20, 580), rnd.Next(-10, 400));
-                if (i % 2 == 1)
-                {
-                    stars[i].Size = new Size(2, 2);
-                    stars[i].BackColor = Color.Wheat;
-                }
-                else
-                {
-                    stars[i].Size = new Size(3, 3);
-                    stars[i].BackColor = Color.DarkGray;
-                }
-                // 스플릿 컨테이너 하기 전 코드 
-                // this.Controls.Add(stars[i]);
-                // 스플릿 컨테이너 후 코드
-                splitContainer1.Panel1.Controls.Add(stars[i]);
-            }
-
-            enemiesMunition = new PictureBox[10];
-
-            for (int i = 0; i < enemiesMunition.Length; i++)
-            {
-                enemiesMunition[i] = new PictureBox();
-                enemiesMunition[i].Size = new Size(2, 25);
-                enemiesMunition[i].Visible = false;
-                enemiesMunition[i].BackColor = Color.Yellow;
-                int x = rnd.Next(0, 10);
-                enemiesMunition[i].Location = new Point(enemies[x].Location.X, enemies[x].Location.Y - 20);
-                // 스플릿 컨테이너 하기 전 코드
-                // this.Controls.Add(enemiesMunition[i]);
-                // 스플릿 컨테이너 후 코드
-                splitContainer1.Panel1.Controls.Add(enemiesMunition[i]);
-            }
-
-            // 배경음악 실행 
-            gameMedia.controls.play();
+                //}
         }
+        // [끝] 게임 UI 컨트롤 생성 
 
-        private void MoveBgTimer_Tick(object sender, EventArgs e)
-        {
-            for(int i = 0; i < stars.Length/2; i++)
-            {
-                stars[i].Top += backgroundspeed;
 
-                if (stars[i].Top >= this.Height)
-                {
-                    stars[i].Top = -stars[i].Height;
-                }
-            }
 
-            for(int i = stars.Length/2; i < stars.Length; i++)
-            {
-                stars[i].Top += backgroundspeed - 2;
 
-                if (stars[i].Top >= this.Height)
-                {
-                    stars[i].Top = -stars[i].Height;
-                }
-            }
-        }
 
-        private void LeftMoveTimer_Tick(object sender, EventArgs e)
-        {
-            if (player1.Left > 10)
-            {
-                player1.Left -= playerSpeed;
-            }
-        }
 
-        private void RightMoveTimer_Tick(object sender, EventArgs e)
-        {
-            if (player1.Right < 580)
-            {
-                player1.Left += playerSpeed;
-            }
-        }
 
-        private void DownMoveTimer_Tick(object sender, EventArgs e)
-        {
-            if (player1.Top < 400)
-            {
-                player1.Top += playerSpeed;
-            }
-        }
 
-        private void UpMoveTimer_Tick(object sender, EventArgs e)
-        {
-            if (player1.Top > 10)
-            {
-                player1.Top -= playerSpeed;
-            }
-        }
-
-        private void Form1_KeyUp(object sender, KeyEventArgs e)
-        {
-            RightMoveTimer.Stop();
-            LeftMoveTimer.Stop();
-            UpMoveTimer.Stop();
-            DownMoveTimer.Stop();
-
-            if (e.KeyCode == Keys.Space)
-            {
-                if (!gameIsOver)
-                {
-                    if(pause)
-                    {
-                        StartTimers();
-                        label1.Visible = false;
-                        gameMedia.controls.play();
-                        pause = false;
-                    }
-                    else
-                    {
-                        label1.Location = new Point(this.Width/2 - 120, 150);
-                        label1.Text = "PAUSED";
-                        label1.Visible = true;
-                        gameMedia.controls.pause();
-                        StopTimers();
-                        pause = true;
-                    }
-                }
-            }
-        }
-
-        private void Form1_KeyDown(object sender, KeyEventArgs e)
-        {
-            // 게임오버 됐을때에는 player 움직이지 않도록 해야하니까 pause 체크 
-            if (!pause)
-            {
-                if (role == 1) // player1
-                {
-                    if (e.KeyCode == Keys.Right)
-                        RightMoveTimer.Start();
-                    if (e.KeyCode == Keys.Left)
-                    {
-                        LeftMoveTimer.Start();
-                    }
-                    if (e.KeyCode == Keys.Up)
-                    {
-                        UpMoveTimer.Start();
-                    }
-                    if (e.KeyCode == Keys.Down)
-                    {
-                        DownMoveTimer.Start();
-                    }
-                }
-                else if (role == 2) // player2
-                {
-                    if (e.KeyCode == Keys.Right)
-                    {
-                        RightMoveTimer.Start();
-                    }
-                    if (e.KeyCode == Keys.Left)
-                    {
-                        LeftMoveTimer.Start();
-                    }
-                    if (e.KeyCode == Keys.Up)
-                    {
-                        UpMoveTimer.Start();
-                    }
-                    if (e.KeyCode == Keys.Down)
-                    {
-                        DownMoveTimer.Start();
-                    }
-                }
-            }
-        }
-
-        private void MoveMunitionTimer_Tick(object sender, EventArgs e)
-        {
-            shootgMedia.controls.play();
-            for (int i = 0; i < munitions.Length; i++)
-            {
-                if (munitions[i].Top > 0)
-                {
-                    munitions[i].Visible = true;
-                    munitions[i].Top -= munitionSpeed;
-
-                    Collision();
-                }
-                else
-                {
-                    munitions[i].Visible = false;
-                    munitions[i].Location = new Point(player1.Location.X + 20, player1.Location.Y - i * 30);
-                }
-            }
-        }
-
-        private void MoveEnemiesTimer_Tick(object sender, EventArgs e)
-        {
-            MoveEnemies(enemies, enemiSpeed);
-
-        }
-        private void MoveEnemies(PictureBox[] array, int speed)
-        {
-            for (int i = 0; i < array.Length; i++)
-            {
-                array[i].Visible = true;
-                array[i].Top += speed;
-
-                if (array[i].Top > this.Height)
-                {
-                    array[i].Location = new Point((i + 1) * 50, -200);
-                }
-            }
-        }
+        // Timer_Tick 은 맨 밑으로 이동시키자 
+        // [시작] 내 비행기 충돌시 로직
         private void Collision()
         {
-            for (int i = 0; i < enemies.Length; i++)
+            foreach (var enemy in myEnemies)
             {
-                if (munitions[0].Bounds.IntersectsWith(enemies[i].Bounds)
-                    || munitions[1].Bounds.IntersectsWith(enemies[i].Bounds)
-                    || munitions[2].Bounds.IntersectsWith(enemies[i].Bounds))
+                var key = enemy.Key;         // 키
+                var pb = enemy.Value;        // 값 
+
+                if (myMunitions[0].Bounds.IntersectsWith(pb.Bounds)
+                    || myMunitions[1].Bounds.IntersectsWith(pb.Bounds)
+                    || myMunitions[2].Bounds.IntersectsWith(pb.Bounds))
                 {
                     explosionMedia.controls.play();
 
@@ -561,31 +333,70 @@ namespace SpaceShooter
                     {
                         level += 1;
                         levellbl.Text = (level < 10) ? "0" + level.ToString() : level.ToString();
-
+                        
+                        // 난이도 조절 
                         if (enemiSpeed <= 10 && enemiesMunitionSpeed <= 10 && difficulty >= 0)
                         {
                             difficulty--;
                             enemiSpeed++;
                             enemiesMunitionSpeed++;
                         }
+                        // 10레벨 되면 이기면서 게임 끝 
                         if (level == 10)
                         {
                             GameOver("YOU WIN!");
                         }
                     }
-
-                    enemies[i].Location = new Point((i + 1) * 50, -100);
+                    // 여기서도 myEnemies의 좌표값을 조절하네.. ?
+                    pb.Location = new Point((key + 1) * 50, -100);
                 }
 
-                if (player1.Bounds.IntersectsWith(enemies[i].Bounds))
+                if (myPlayer.Bounds.IntersectsWith(pb.Bounds))
                 {
                     explosionMedia.settings.volume = 30;
                     explosionMedia.controls.play();
-                    player1.Visible = false;
+                    myPlayer.Visible = false;
                     GameOver("GameOver");
                 }
             }
         }
+
+        // 적 비행기 "총알" 보여지는 Timer 이벤트 핸들러 
+        private void EnemiesMunitionTimer_Tick(object sender, EventArgs e)
+        {
+            for (int i = 0; i < (myEnemiesMunition.Length - difficulty); i++)
+            {
+                if (myEnemiesMunition[i].Top < this.Height)
+                {
+                    myEnemiesMunition[i].Visible = true;
+                    myEnemiesMunition[i].Top += enemiesMunitionSpeed;
+
+                    CollisionWithEnemiesMunition();
+                }
+                else
+                {
+                    myEnemiesMunition[i].Visible = false;
+                    int x = rnd.Next(0, 10);
+                    myEnemiesMunition[i].Location = new Point(myEnemies[x].Location.X + 20, myEnemies[x].Location.Y + 30);
+                }
+            }
+        }
+
+        private void CollisionWithEnemiesMunition()
+        {
+            for (int i = 0; i < myEnemiesMunition.Length; i++)
+            {
+                if (myEnemiesMunition[i].Bounds.IntersectsWith(myPlayer.Bounds))
+                {
+                    myEnemiesMunition[i].Visible = false;
+                    explosionMedia.settings.volume = 30;
+                    explosionMedia.controls.play();
+                    myPlayer.Visible = false;
+                    GameOver("Game Over");
+                }
+            }
+        }
+        //[끝] 내 비행기 충돌시 로직 
         private void GameOver(String str)
         {
             label1.Text = str;
@@ -614,41 +425,7 @@ namespace SpaceShooter
             MoveMunitionTimer.Start();
             EnemiesMunitionTimer.Start();
         }
-
-        private void EnemiesMunitionTimer_Tick(object sender, EventArgs e)
-        {
-            for (int i = 0; i < (enemiesMunition.Length - difficulty); i++)
-            {
-                if (enemiesMunition[i].Top < this.Height)
-                {
-                    enemiesMunition[i].Visible = true;
-                    enemiesMunition[i].Top += enemiesMunitionSpeed;
-
-                    CollisionWithEnemiesMunition();
-                }
-                else
-                {
-                    enemiesMunition[i].Visible = false;
-                    int x = rnd.Next(0, 10);
-                    enemiesMunition[i].Location = new Point(enemies[x].Location.X + 20, enemies[x].Location.Y + 30);
-                }
-            }
-        }
-
-        private void CollisionWithEnemiesMunition()
-        {
-            for (int i = 0; i < enemiesMunition.Length; i++)
-            {
-                if (enemiesMunition[i].Bounds.IntersectsWith(player1.Bounds))
-                {
-                    enemiesMunition[i].Visible = false;
-                    explosionMedia.settings.volume = 30;
-                    explosionMedia.controls.play();
-                    player1.Visible = false;
-                    GameOver("Game Over");
-                }
-            }
-        }
+      
 
         private async void ReplayBtn_Click(object sender, EventArgs e)
         {
@@ -657,6 +434,7 @@ namespace SpaceShooter
             Form1_Load(e, e);
         }
 
+        // [시작] 내 패널의 State 를 서버로 전송 
         private void ExitBtn_Click(object sender, EventArgs e)
         {
             Environment.Exit(1);
@@ -665,27 +443,35 @@ namespace SpaceShooter
         private async void SendStateTimer_Tick(object sender, EventArgs e)
         {
             if (client == null || client.Stream == null) return;
-
+            var playerState = new Player();
             // 플레이어 상태 생성
-            var playerState = new Player
+            if (myPlayer == player1)
             {
-                X = player1.Left,
-                Y = player1.Top,
-                Health = 100 // 예시, 필요하면 실제 체력으로
-            };
+                playerState.X = player1.Left;
+                playerState.Y = player1.Top;
+                playerState.Health = 100; // 실제 체력 값으로 바꿔야함. 
+            }
+            else
+            {
+                playerState.X = player2.Left;
+                playerState.Y = player2.Top;
+                playerState.Health = 100; // 실제 체력 값으로 바꿔야함. 
+            }    
 
             // 적 상태 생성
             var enemyStates = new List<Enemy>();
-            for (int i = 0; i < enemies.Length; i++)
+            foreach (var enemy in myEnemies)
             {
-                if (enemies[i].Visible)
+                var pb = enemy.Value;
+                if (pb.Visible)
                 {
                     enemyStates.Add(new Enemy
                     {
-                        Id = i,
-                        X = enemies[i].Left,
-                        Y = enemies[i].Top
+                        Id = (int)pb.Tag,
+                        X = pb.Left,
+                        Y = pb.Top
                     });
+                    
                 }
             }
 
@@ -698,43 +484,277 @@ namespace SpaceShooter
             };
 
             // 서버로 전송
-            await Packet.SendStateAsync(client.Stream, state);
+            await Packet.SendStateAsync(client.Stream, state).ConfigureAwait(false);
         }
+        // [끝] 내 패널의 State 를 서버로 전송 
 
-
-        // 서버에서 받은 State를 UI에 반영
-        public void UpdatePictureBox(State state)
-        {
-            //if (pictureBox1.InvokeRequired)
-            //{
-            //    pictureBox1.Invoke(new Action(() => UpdatePictureBox(state)));
-            //    return;
-            //}
-
-            //// 예: 플레이어 좌표
-            //pictureBox1.Left = state.PlayerX;
-            //pictureBox1.Top = state.PlayerY;
-
-            // 필요 시 적 좌표도 반영 가능
-            // pictureBoxEnemy.Left = state.EnemyX;
-            // pictureBoxEnemy.Top = state.EnemyY;
-        }
-
+        // [시작] 서버에서 받은 State, UI에 반영
         private async Task StartReceivingLoop()
         {
             while (true)
             {
                 try
                 {
-                    State state = await Packet.ReceiveStateAsync(client.Stream);
+                    State state = await Packet.ReceiveStateAsync(client.Stream).ConfigureAwait(false);
                     if (state != null)
-                        UpdatePictureBox(state);
+                        UpdateUI(state);
                 }
                 catch
                 {
                     break;
                 }
             }
+        }
+
+        public void UpdateUI(State state)
+        {
+            if (state == null || this.IsDisposed) return;
+
+            // 항상 UI 스레드에서 실행되도록 보장
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => UpdateUI(state)));
+                return;
+            }
+
+            Panel myPanel = (role == 1) ? splitContainer1.Panel1 : splitContainer1.Panel2;
+            Panel opponentPanel = (role == 1) ? splitContainer1.Panel2 : splitContainer1.Panel1;
+
+            // 포커스 설정 1회
+            if (!focusSet)
+            {
+                myPanel.Focus();
+                focusSet = true;
+            }
+
+            if (state.Role == role)
+            {
+                // --- 내 화면 업데이트 (내 플레이어, 내 적들) ---
+                myPlayer.Left = state.Player.X;
+                myPlayer.Top = state.Player.Y;
+
+                // Enemies: 서버가 보내는 내 적들(게임 내 적들)을 동기화
+                SyncEnemiesDictionary(myEnemies, state.Enemies, myPanel);
+            }
+            else
+            {
+                // --- 상대 화면 업데이트 (상대 플레이어, 상대 적들) ---
+                opponentPlayer.Left = state.Player.X;
+                opponentPlayer.Top = state.Player.Y;
+
+                SyncEnemiesDictionary(opponentEnemies, state.Enemies, opponentPanel);
+            }
+        }
+
+        // 엔티티 딕셔너리 동기화: 존재하지 않으면 생성, 존재하면 위치 갱신, 서버에 없으면 제거
+        private void SyncEnemiesDictionary(Dictionary<int, PictureBox> dict, List<Enemy> states, Panel parentPanel)
+        {
+            var existingIds = new HashSet<int>(dict.Keys);
+
+            foreach (var e in states)
+            {
+                if (dict.ContainsKey(e.Id))
+                {
+                    var pb = dict[e.Id];
+                    pb.Left = e.X;
+                    pb.Top = e.Y;
+                    pb.Visible = true;
+                    existingIds.Remove(e.Id);
+                }
+                else
+                {
+                    var pb = new PictureBox
+                    {
+                        Width = 40,
+                        Height = 40,
+                        Left = e.X,
+                        Top = e.Y,
+                        BackColor = Color.Red,
+                        Tag = e.Id,
+                        SizeMode = PictureBoxSizeMode.Zoom,
+                        Parent = parentPanel,
+                        Visible = true
+                    };
+                    dict[e.Id] = pb;
+                }
+            }
+            // 서버에 없는 적 제거
+            foreach (var id in existingIds)
+            {
+                var pb = dict[id];
+                if (pb != null)
+                {
+                    parentPanel.Controls.Remove(pb);
+                    pb.Dispose();
+                }
+                dict.Remove(id);
+            }
+        }
+        // [끝] 서버에서 받은 State, UI에 반영
+
+
+        // [시작] Timer_Tick 이벤트 핸들러 모음 
+        private void MoveBgTimer_Tick(object sender, EventArgs e)
+        {
+            for (int i = 0; i < myStars.Length / 2; i++)
+            {
+                myStars[i].Top += backgroundspeed;
+
+                if (myStars[i].Top >= this.Height)
+                {
+                    myStars[i].Top = -myStars[i].Height;
+                }
+            }
+
+            for (int i = myStars.Length / 2; i < myStars.Length; i++)
+            {
+                myStars[i].Top += backgroundspeed - 2;
+
+                if (myStars[i].Top >= this.Height)
+                {
+                    myStars[i].Top = -myStars[i].Height;
+                }
+            }
+        }
+
+        private void LeftMoveTimer_Tick(object sender, EventArgs e)
+        {
+            if (myPlayer.Left > 10)
+            {
+                myPlayer.Left -= playerSpeed;
+            }
+        }
+
+        private void RightMoveTimer_Tick(object sender, EventArgs e)
+        {
+            if (myPlayer.Right < 580)
+            {
+                myPlayer.Left += playerSpeed;
+            }
+        }
+
+        private void DownMoveTimer_Tick(object sender, EventArgs e)
+        {
+            if (myPlayer.Top < 400)
+            {
+                myPlayer.Top += playerSpeed;
+            }
+        }
+
+        private void UpMoveTimer_Tick(object sender, EventArgs e)
+        {
+            if (myPlayer.Top > 10)
+            {
+                myPlayer.Top -= playerSpeed;
+            }
+        }
+        // [끝] Timer_Tick 이벤트 핸들러 모음 
+
+        // [시작] 키입력 로직
+        private void Form1_KeyDown(object sender, KeyEventArgs e)
+        {
+            // 게임오버 됐을때에는 player 움직이지 않도록 해야하니까 pause 체크 
+            if (!pause)
+            {
+                if (e.KeyCode == Keys.Right)
+                    RightMoveTimer.Start();
+                if (e.KeyCode == Keys.Left)
+                    LeftMoveTimer.Start();
+                if (e.KeyCode == Keys.Up)
+                    UpMoveTimer.Start();
+                if (e.KeyCode == Keys.Down)
+                    DownMoveTimer.Start();
+            }
+        }
+
+        private void Form1_KeyUp(object sender, KeyEventArgs e)
+        {
+            RightMoveTimer.Stop();
+            LeftMoveTimer.Stop();
+            UpMoveTimer.Stop();
+            DownMoveTimer.Stop();
+
+            if (e.KeyCode == Keys.Space)
+            {
+                if (!gameIsOver)
+                {
+                    if (pause)
+                    {
+                        StartTimers();
+                        label1.Visible = false;
+                        gameMedia.controls.play();
+                        pause = false;
+                    }
+                    else
+                    {
+                        // label1.Location = new Point(this.Width / 2 - 120, 150);
+                        label1.Text = "PAUSED";
+                        label1.Visible = true;
+                        gameMedia.controls.pause();
+                        StopTimers();
+                        pause = true;
+                    }
+                }
+            }
+        }
+        // [끝] 키입력 로직 
+
+        // 플레이어에서 총알 나감. 
+        private void MoveMunitionTimer_Tick(object sender, EventArgs e)
+        {
+            shootgMedia.controls.play();
+            for (int i = 0; i < myMunitions.Length; i++)
+            {
+                if (myMunitions[i].Top > 0)
+                {
+                    myMunitions[i].Visible = true;
+                    myMunitions[i].Top -= munitionSpeed;
+
+                    Collision();
+                }
+                else
+                {
+                    myMunitions[i].Visible = false;
+                    myMunitions[i].Location = new Point(myPlayer.Location.X + 20, myPlayer.Location.Y - i * 30);
+                }
+            }
+
+
+        }
+
+        private void MoveEnemiesTimer_Tick(object sender, EventArgs e)
+        {
+            MoveEnemies(myEnemies, enemiSpeed);
+        }
+
+        private void MoveEnemies(Dictionary<int, PictureBox> dict, int speed)
+        {
+            foreach (var kvp in dict) // key-value 쌍 순회
+            {
+                PictureBox enemy = kvp.Value; // PictureBox만 꺼냄
+                enemy.Visible = true;
+                enemy.Top += speed;
+
+                if (enemy.Top > this.Height)
+                {
+                    // 키 값(kvp.Key)을 이용해서 새 위치 계산 가능
+                    enemy.Location = new Point((kvp.Key + 1) * 50, -200);
+                }
+            }
+        }
+        // ----------------------------
+        // 폼 닫기 시 정리
+        // ----------------------------
+        private void FormMain_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            try
+            {
+                if (client != null)
+                {
+                    // client.Close/Disconnect 등 필요시 호출
+                }
+            }
+            catch { }
         }
     }
 }
