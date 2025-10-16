@@ -1,9 +1,10 @@
-﻿using System;
+﻿using SpaceShooterShared;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using SpaceShooterShared;
 
 namespace SpaceShooter
 {
@@ -13,29 +14,32 @@ namespace SpaceShooter
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        static void Main()
+        static async Task Main()
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
             Client client = new Client();
-            // client.Connect();
-
-            // 폼 생성
-            FormMain form = new FormMain(client, 0);
-
-            // 폼이 닫힐 때 클라이언트 정리
-            form.FormClosed += (sender, e) =>
+            try
             {
-                client.Disconnect();
-                Console.WriteLine("클라이언트 연결 종료됨.");
-            };
-            // 비동기 연결을 UI 스레드를 막지 않고 실행
-            Task.Run(async () => await client.ConnectAsync());
+                // 서버에 연결하고 초기 State(역할 포함)를 기다림
+                State initialState = await client.ConnectAndWaitInitialStateAsync(5000);
 
-            // WinForm 실행
-            Application.Run(form);
+                int assignedRole = initialState?.Role ?? 1;
+                Console.WriteLine($"초기 State 수신: assignedRole = {assignedRole}");
 
+                Application.Run(new FormMain(client, assignedRole));
+            }
+            catch (TimeoutException tex)
+            {
+                MessageBox.Show("초기 State 수신 타임아웃: 기본 역할(1)로 실행합니다.\n" + tex.Message, "경고", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Application.Run(new FormMain(client, 1));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("서버 연결 중 오류가 발생했습니다:\n" + ex.Message, "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }
+

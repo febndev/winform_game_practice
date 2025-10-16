@@ -195,6 +195,7 @@
             this.ExitBtn.Text = "Exit";
             this.ExitBtn.UseVisualStyleBackColor = true;
             this.ExitBtn.Visible = false;
+            this.ExitBtn.Click += new System.EventHandler(this.ExitBtn_Click_1);
             // 
             // ReplayBtn
             // 
@@ -205,6 +206,7 @@
             this.ReplayBtn.Text = "Replay";
             this.ReplayBtn.UseVisualStyleBackColor = true;
             this.ReplayBtn.Visible = false;
+            this.ReplayBtn.Click += new System.EventHandler(this.ReplayBtn_Click_1);
             // 
             // player1
             // 

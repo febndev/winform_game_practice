@@ -16,25 +16,24 @@ namespace SpaceShooterServer
     {
         private readonly int port = 8080;
         private TcpListener server = null;
-        // private bool isRunning = false; 였는데 volatile이 뭐람.?
+        // volatile 휘발성 
         private volatile bool isRunning = false;
 
-        // 멀티쓰레드로 변경하면서 변수가 늘었음. 
-        //private readonly List<TcpClient> clients = new();
-        //private readonly object clientsLock = new();
-
-        // role -> TcpClient 매핑 (예: role 1 -> 클라이언트A, role 2 -> 클라이언트B)
-        // 이거 우선 수정해야하는데 붙여넣었음. 접속 순서대로 1p,2p 하든지 해야함.
-        //private readonly Dictionary<int, TcpClient> roleClients = new();
-        //private readonly object roleLock = new();
         private List<ClientState> clients = new List<ClientState>();
-        private int nextRole = 1;
-        private readonly object clientsLock = new object(); 
+
 
         // 각 TcpClient별 쓰기 락 (동시 쓰기 방지)
         private readonly Dictionary<TcpClient, SemaphoreSlim> clientSemaphores = new();
         private readonly object semLock = new();
 
+        // [시작] 클라이언트 2명으로 제한, 클라 번호 부여 1,2 만 가능하게끔 
+        private readonly object clientsLock = new object();
+        private readonly SortedSet<int> freeRoles = new SortedSet<int>(); // <- 추가
+        private int nextRole = 1;
+        // 선택: 2명까지만 허용하고 싶으면
+        // private const int MaxPlayers = 2; // 0이면 무제한
+        // [끝] 클라이언트 2명으로 제한, 클라 번호 부여 1,2 만 가능하게끔 
+                                          
         // 클라이언트 상태 + 스트림 
         private class ClientState
         {
@@ -114,7 +113,7 @@ namespace SpaceShooterServer
         
         private void HandleClient(TcpClient client)
         {
-            int assignedRole;
+            int assignedRole = 0;
             ClientState myClientState = null;
             try
             {
@@ -123,11 +122,21 @@ namespace SpaceShooterServer
                 // 1) 접속 순서대로 Role 할당 및 초기 State 생성/저장
                 lock (clientsLock)
                 {
-                    assignedRole = nextRole++;
+                    // 빈 번호가 있으면 가장 작은 번호를 재사용, 없으면 증가
+                    if (freeRoles.Count > 0)
+                    {
+                        assignedRole = freeRoles.Min;
+                        freeRoles.Remove(assignedRole);
+                    }
+                    else
+                    {
+                        assignedRole = nextRole++;
+                    }
+
                     var initialState = new State
                     {
                         Role = assignedRole,
-                        Player = new Player { X = 50, Y = 50 }, // 초기 위치(필요시 조정)
+                        Player = new Player { X = 50, Y = 50 },
                         Enemies = new List<Enemy>()
                     };
 
@@ -162,9 +171,6 @@ namespace SpaceShooterServer
                     {
                         sem.Release();
                     }
-
-
-
                 });
 
                 // 3) 읽기 루프: length(4) -> payload(length) -> JSON Deserialize(State)
@@ -256,27 +262,29 @@ namespace SpaceShooterServer
             }
             finally
             {
-                // 연결 종료 정리: clients 리스트에서 제거, 세마포어 해제, TcpClient 닫기
-                if (myClientState != null)
+                // 로그/반납용 역할 번호 캐싱 (초기 예외 대비)
+                int roleToRelease = (myClientState?.State?.Role) ?? assignedRole;
+
+                // 1) clients 목록에서 제거 + 역할 번호 반납 (한 번만)
+                lock (clientsLock)
                 {
-                    lock (clientsLock)
-                    {
-                        clients.RemoveAll(c => ReferenceEquals(c.Client, myClientState.Client));
-                    }
-                }
-                else
-                {
-                    // myClientState이 null인 경우(초기화 실패 등), tcpClient가 리스트에 남아있을 수 있으니 안전하게 제거 시도
-                    lock (clientsLock)
-                    {
-                        clients.RemoveAll(c => ReferenceEquals(c.Client, client));
-                    }
+                    // 어떤 경로건 동일하게 제거
+                    clients.RemoveAll(c => ReferenceEquals(c.Client, client));
+
+                    // assignedRole은 0일 수 있으니 방어
+                    if (roleToRelease > 0)
+                        freeRoles.Add(roleToRelease);
                 }
 
+                // 2) 세마포어 정리 (clientsLock과 별개 락이므로 락 바깥에서 호출)
                 RemoveSemaphoreForClient(client);
+
+                // 3) TcpClient 닫기 (한 번만)
                 try { client.Close(); } catch { }
 
-                Console.WriteLine($"클라이언트 연결 종료(Role {(myClientState?.State?.Role.ToString() ?? "Unknown")})");
+                // 4) 로그 (역할 번호가 없을 수 있으니 처리)
+                string roleText = (roleToRelease > 0) ? roleToRelease.ToString() : "Unknown";
+                Console.WriteLine($"클라이언트 연결 종료(Role {roleText})");
             }
         }
         // 10.15 오전 9:48 추가
@@ -334,6 +342,7 @@ namespace SpaceShooterServer
             catch (IOException) { return false; }
             catch (ObjectDisposedException) { return false; }
         }
+
 
     }
 }

@@ -20,6 +20,9 @@ namespace SpaceShooter
 
         // --- 게임 오브젝트 (패널별) ---
         // 디자이너에 올려둔 player1, player2 존재 (Name: player1, player2)
+        private Panel myPanel;
+        private Panel opponentPanel;
+
         private PictureBox myPlayer;         // 내 화면의 플레이어 (디자이너의 player1/2 중 하나)
         private PictureBox opponentPlayer;   // 상대 화면의 플레이어
 
@@ -56,22 +59,7 @@ namespace SpaceShooter
         private int role = 1;
         private bool focusSet = false;
        
-        // 예전 생성자 코드 
-        //public FormMain()
-        //{
-        //    InitializeComponent();
 
-        //    // 폼에서 키 이벤트 받기
-        //    this.KeyPreview = true;
-        //    this.KeyDown += Form1_KeyDown;
-        //    this.KeyUp += Form1_KeyUp;
-
-        //    // 패널 포커스 허용
-        //    splitContainer1.Panel1.TabStop = true;
-        //    splitContainer1.Panel2.TabStop = true;
-
-        //}
-        // 새로 추가한 생성자
         public FormMain(Client clientInstance, int assignedRole)
         {
             InitializeComponent();
@@ -89,15 +77,16 @@ namespace SpaceShooter
             this.Load += Form1_Load;
             this.FormClosing += FormMain_FormClosing;
 
-            // 연결 후 수신 루프 시작
+            // 연결 후 수신 루프 시작, 중복이라 삭제 그래도 여기서 이렇게 호출할 수 있다는걸 알려고 남겨둠.
             // _ = Task.Run(() => StartReceivingLoop());
         }
         private void Form1_Load(object sender, EventArgs e)
         {
 
             // myPanel / opponentPanel 결정 (role 기준)
-            Panel myPanel = (role == 1) ? splitContainer1.Panel1 : splitContainer1.Panel2;
-            Panel opponentPanel = (role == 1) ? splitContainer1.Panel2 : splitContainer1.Panel1;
+            myPanel = (role == 1) ? splitContainer1.Panel1 : splitContainer1.Panel2;
+            opponentPanel = (role == 1) ? splitContainer1.Panel2 : splitContainer1.Panel1;
+            myPanel.Font = this.Font;
 
             // 디자이너에 올려둔 player1/player2의 Parent를 적절히 설정 (이미 Form 디자이너에 존재)
             myPlayer = (role == 1) ? player1 : player2;
@@ -112,6 +101,12 @@ namespace SpaceShooter
 
             // 패널별 게임 오브젝트 초기화 (총알, 별, 적 총알)
             InitGameObjects(myPanel, opponentPanel);
+
+            // 상대 패널을 반투명하게 덮기
+            AddDarkOverlay(opponentPanel);
+
+            // 점수 레이블, 버튼 등 myPanel에 띄우기 
+            AttachHudTo(myPanel);
 
             // 포커스 한 번 설정
             myPanel.Focus();
@@ -304,11 +299,19 @@ namespace SpaceShooter
         }
         // [끝] 게임 UI 컨트롤 생성 
 
-
-
-
-
-
+        // [시작] 패널 ui 어둡게 
+        private void AddDarkOverlay(Panel targetPanel)
+        {
+            Panel overlay = new Panel
+            {
+                BackColor = Color.FromArgb(30, 0, 0, 0), // 반투명 검정색 (120=불투명도)
+                Dock = DockStyle.Fill,
+                Enabled = false // 클릭 등 이벤트 통과하게 함
+            };
+            targetPanel.Controls.Add(overlay);
+            overlay.BringToFront();
+        }
+        // [끝] 패널 ui 어둡게 
 
 
         // Timer_Tick 은 맨 밑으로 이동시키자 
@@ -425,19 +428,49 @@ namespace SpaceShooter
             MoveMunitionTimer.Start();
             EnemiesMunitionTimer.Start();
         }
-      
 
-        private async void ReplayBtn_Click(object sender, EventArgs e)
+        // HUD를 내가 조종하는 패널로 이동
+        private void AttachHudTo(Panel myPanel)
         {
-            this.Controls.Clear();
-            InitializeComponent();
-            Form1_Load(e, e);
+            // 디자이너 컨트롤들을 한 묶음으로
+            Control[] hudAlwaysOn = { scoreTitle, scorelbl, levelTitle, levellbl };
+            Control[] hudGameOver = { label1, ReplayBtn, ExitBtn }; // 게임오버 때만 표시
+
+            foreach (var c in hudAlwaysOn)
+            {
+                c.Parent = myPanel;
+                c.Visible = true;
+                c.BringToFront();
+                c.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+            }
+
+            foreach (var c in hudGameOver)
+            {
+                c.Parent = myPanel;
+                c.Visible = false;            // ← 기본 숨김
+                c.BringToFront();
+                c.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+            }
+
+            // 패널이 바뀌면 좌표계도 바뀌니, 필요한 경우 위치를 한 번 정렬
+            // (원래 패널에 맞춘 절대 좌표라면 건드릴 필요 없음)
+            PositionHud(myPanel);
         }
 
-        // [시작] 내 패널의 State 를 서버로 전송 
-        private void ExitBtn_Click(object sender, EventArgs e)
+        // HUD 배치(원하는 위치로 간단히 정리)
+        private void PositionHud(Panel myPanel)
         {
-            Environment.Exit(1);
+            // 예: 좌측 상단 정리 배치 (원하던 기존 위치가 있으면 그 좌표 그대로 써도 됨)
+            scoreTitle.Location = new Point(19, 10);
+            scorelbl.Location = new Point(109, scoreTitle.Top);
+
+            levelTitle.Location = new Point(456, 10);
+            levellbl.Location = new Point(536, levelTitle.Top);
+
+            // 중앙 안내 라벨/버튼(게임오버/리플레이용)도 내 패널 기준으로
+            label1.Location = new Point(myPanel.Width / 2 - 80, myPanel.Height / 2 - 40);
+            ReplayBtn.Location = new Point(175, 211);
+            ExitBtn.Location = new Point(175, 279);
         }
 
         private async void SendStateTimer_Tick(object sender, EventArgs e)
@@ -516,9 +549,9 @@ namespace SpaceShooter
                 this.BeginInvoke(new Action(() => UpdateUI(state)));
                 return;
             }
-
-            Panel myPanel = (role == 1) ? splitContainer1.Panel1 : splitContainer1.Panel2;
-            Panel opponentPanel = (role == 1) ? splitContainer1.Panel2 : splitContainer1.Panel1;
+            // Form1_Load 와 중복 선언중이어서 class 멤버로 선언하고 Form1_Load에서 초기화하는걸로 변경 
+            //Panel myPanel = (role == 1) ? splitContainer1.Panel1 : splitContainer1.Panel2;
+            //Panel opponentPanel = (role == 1) ? splitContainer1.Panel2 : splitContainer1.Panel1;
 
             // 포커스 설정 1회
             if (!focusSet)
@@ -756,6 +789,102 @@ namespace SpaceShooter
             }
             catch { }
         }
+
+        private void ReplayBtn_Click_1(object sender, EventArgs e)
+        {
+            // 상태값 초기화
+            score = 0;
+            level = 1;
+            difficulty = 9;
+            gameIsOver = false;
+            pause = false;
+
+            label1.Visible = false;
+            ReplayBtn.Visible = false;
+            ExitBtn.Visible = false;
+
+            // 플레이어/적 재배치
+            myPlayer.Visible = true;
+            myPlayer.Location = new Point(250, 400);
+
+            foreach (var kvp in myEnemies)
+            {
+                var idx = kvp.Key;
+                var pb = kvp.Value;
+                pb.Location = new Point((idx + 1) * 50, -100);
+                pb.Visible = true;
+            }
+
+            // 총알/별 재초기화(필요한 범위만)
+            for (int i = 0; i < myMunitions.Length; i++)
+            {
+                myMunitions[i].Visible = false;
+                myMunitions[i].Location = new Point(myPlayer.Left + 20, myPlayer.Top - i * 30);
+            }
+
+            // 타이머/사운드 재개
+            StartTimers();
+            gameMedia.controls.play();
+
+            // 혹시 포커스 잃었으면 다시 주기
+            var myPanel = (role == 1) ? splitContainer1.Panel1 : splitContainer1.Panel2;
+            myPanel.Focus();
+        }
+
+        private void ExitBtn_Click_1(object sender, EventArgs e)
+        {
+            try
+            {
+                client?.Disconnect(); // 서버연결을 끊고 
+            }
+            catch { }
+
+            Application.Exit(); // 프로그램 정상 종료 
+            // 아래 기존 코드 , 강제종료하는 코드였음. 
+            // Environment.Exit(1);
+        }
+
+        //private async void ReplayBtn_Click(object sender, EventArgs e)
+        //{
+        //    // 게임 관련 변수 초기화
+        //    score = 0;
+        //    level = 1;
+        //    difficulty = 9;
+        //    gameIsOver = false;
+        //    pause = false;
+
+        //    label1.Visible = false;
+        //    ReplayBtn.Visible = false;
+        //    ExitBtn.Visible = false;
+
+        //    // 플레이어 및 적 초기화
+        //    myPlayer.Visible = true;
+        //    myPlayer.Location = new Point(250, 400);
+        //    foreach (var enemy in myEnemies.Values)
+        //    {
+        //        enemy.Location = new Point((int)enemy.Tag * 50, -100);
+        //        enemy.Visible = true;
+        //    }
+
+        //    // 타이머 재시작
+        //    StartTimers();
+        //    gameMedia.controls.play();
+        //}
+
+        //// [시작] 내 패널의 State 를 서버로 전송 
+        //private void ExitBtn_Click(object sender, EventArgs e)
+        //{
+        //    try
+        //    {
+        //        client?.Disconnect(); // 서버연결을 끊고 
+        //    }
+        //    catch { }
+
+        //    Application.Exit(); // 프로그램 정상 종료 
+        //    // 아래 기존 코드 , 강제종료하는 코드였음. 
+        //    // Environment.Exit(1);
+        //}
+
     }
 }
 

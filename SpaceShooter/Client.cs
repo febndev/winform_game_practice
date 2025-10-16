@@ -2,6 +2,7 @@
 using System;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -24,6 +25,10 @@ namespace SpaceShooter
         public NetworkStream Stream => stream; // 공개 프로퍼티
         public bool IsConnected => client?.Connected ?? false;
 
+        //[시작] Form1_Load보다 먼저 실행되게끔, 서버로부터 클라이언트 Role 부여 먼저 받게끔 하기위해서 선언 
+        private TaskCompletionSource<State> _initialStateTcs;
+        private CancellationTokenSource _receiveLoopCts;
+
         public Client() { }
 
         // 비동기 연결
@@ -39,16 +44,20 @@ namespace SpaceShooter
                 //Console.WriteLine("서버에 연결 성공!");
                 stream = client.GetStream();
 
+                // 초기 상태 수신을 위한 TCS 초기화 (재시도 시 초기화)
+                _initialStateTcs = new TaskCompletionSource<State>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+                // 수신 루프용 CancellationTokenSource 준비 (이미 있으면 새로 만듦)
+                _receiveLoopCts?.Cancel();
+                _receiveLoopCts = new CancellationTokenSource();
+
                 // 연결 후 바로 수신 루프 시작 
-                _ = Task.Run(() => StartReceivingLoop());
+                _ = Task.Run(() => StartReceivingLoop(_receiveLoopCts.Token));
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"서버 연결 실패: {ex.Message}");
-            }
-            catch // 이건 뭔진 알겠는데 일단 놔두고 다시 한번 보기 
-            {
-                try {  client?.Close(); } catch { }
+                try { client?.Close(); } catch { }
                 client = null;
                 stream = null;
                 throw;
@@ -59,49 +68,101 @@ namespace SpaceShooter
         {
             try
             {
-                try { stream?.Close(); } catch { }
-                try { client?.Close(); } catch { }
-                client = null;
-                stream = null;
+                _receiveLoopCts?.Cancel();
+                _receiveLoopCts?.Dispose();
+                _receiveLoopCts = null;
             }
             catch { }
+
+            try { stream?.Close(); } catch { }
+            try { client?.Close(); } catch { }
+
+            stream = null;
+            client = null;
+        }
+
+        // 기존 ConnectAsync 를 유지하고, 아래 메서드는 연결 후 수신루프 시작 + 초기 state를 기다림
+        public async Task<State> ConnectAndWaitInitialStateAsync(int timeoutMs = 5000)
+        {
+            // 1) 연결 시작 (ConnectAsync 내부에서 _initialStateTcs 초기화 및 StartReceivingLoop 시작)
+            await ConnectAsync().ConfigureAwait(false);
+
+            // 2) 초기 state 를 기다림 (타임아웃 처리)
+            var tcsTask = _initialStateTcs?.Task;
+            if (tcsTask == null)
+                throw new InvalidOperationException("_initialStateTcs가 초기화되지 않았습니다.");
+
+            var completed = await Task.WhenAny(tcsTask, Task.Delay(timeoutMs)).ConfigureAwait(false);
+            if (completed == tcsTask)
+            {
+                return await tcsTask.ConfigureAwait(false); // 성공적으로 받은 State 반환
+            }
+            else
+            {
+                throw new TimeoutException($"초기 State 수신 타임아웃({timeoutMs}ms)");
+            }
         }
 
 
-        private async Task StartReceivingLoop()
+        private async Task StartReceivingLoop(CancellationToken token)
         {
-            if (stream == null) return;
-
-            while (client.Connected)
+            try
             {
-                try
+                var localStream = this.stream; // 안전하게 캡처
+                if (localStream == null) return;
+
+                while (!token.IsCancellationRequested && client != null && client.Connected)
                 {
-                    // Packet.cs의 ReceiveStateAsync 사용
-                    State state = await Packet.ReceiveStateAsync(stream).ConfigureAwait(false);
+                    State state = null;
+                    try
+                    {
+                        // 기존 Packet.ReceiveStateAsync 사용 (예: 길이 읽고 payload 읽기)
+                        state = await Packet.ReceiveStateAsync(localStream).ConfigureAwait(false);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // 스트림이 닫히면 종료
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Receive loop error: " + ex.Message);
+                        break;
+                    }
 
                     if (state == null)
                     {
-                        // null 상태 수신 시 연결 종료
-                        Disconnect();
+                        // 연결이 끊기거나 잘못된 메시지
+                        Console.WriteLine("Received null state -> breaking receive loop");
                         break;
                     }
-                    CurrentState = state;
 
+                    // CurrentState 갱신 (필요하면 프로퍼티를 노출)
+                    this.CurrentState = state;
+
+                    // 최초 상태면 TCS를 완료시킨다 (안전하게 TrySetResult)
+                    if (_initialStateTcs != null && !_initialStateTcs.Task.IsCompleted)
+                    {
+                        _initialStateTcs.TrySetResult(state);
+                    }
+
+                    // 외부 이벤트 핸들러 호출 (UI 등에서 구독)
                     try
                     {
                         OnStateReceived?.Invoke(state);
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"OnStateReceived handler error: {ex}");
+                        Console.WriteLine("OnStateReceived handler threw: " + ex.Message);
                     }
                 }
-                catch (ObjectDisposedException)
+            }
+            finally
+            {
+                // 루프 종료 시 _initialStateTcs 가 아직 완료되지 않았다면 취소 또는 예외 처리
+                if (_initialStateTcs != null && !_initialStateTcs.Task.IsCompleted)
                 {
-                    // 수신 중 예외 발생하면 연결 종료 
-                    System.Diagnostics.Debug.WriteLine("네트워크 스트림이 닫혔습니다.");
-                    Disconnect();
-                    break;
+                    _initialStateTcs.TrySetCanceled();
                 }
             }
         }
