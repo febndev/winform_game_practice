@@ -42,6 +42,9 @@ namespace SpaceShooter
         private PictureBox[] myEnemiesMunition;
         private PictureBox[] opponentEnemiesMunition;
 
+        // 카운트다운/게임시작 전용 라벨
+        private Label centerLabel;
+
         // [시작] ready 버튼 
         private bool myReady = false;
         private bool otherReady = false;
@@ -123,6 +126,26 @@ namespace SpaceShooter
             // 점수 레이블, 버튼 등 myPanel에 띄우기 
             AttachHudTo(myPanel);
 
+            // 중앙라벨 생성해서 카운트다운, GameStart
+            centerLabel = new Label
+            {
+                AutoSize = false,                    // 크기 고정
+                Dock = DockStyle.Fill,               // myPanel 전체를 채움
+                TextAlign = ContentAlignment.MiddleCenter,
+                ForeColor = Color.White,
+                BackColor = Color.Transparent,       // 배경 투명(필요하면 Color.Black 등)
+                Font = new Font("Impact", 48, FontStyle.Bold),
+                Visible = false
+            };
+            myPanel.Controls.Add(centerLabel);
+            centerLabel.BringToFront();
+
+            // 카운트다운 중 다른 컨트롤이 추가돼도 항상 맨 위 유지
+            myPanel.ControlAdded += (s, ex) =>
+            {
+                if (centerLabel?.Visible == true) centerLabel.BringToFront();
+            };
+
             // 포커스 한 번 설정
             myPanel.Focus();
             focusSet = true;
@@ -203,7 +226,6 @@ namespace SpaceShooter
                     Parent = opponentPanel
                 };
             }
-
 
             // --- 내/상대 총알 ---
             myMunitions = new PictureBox[3];
@@ -327,37 +349,20 @@ namespace SpaceShooter
         }
         // [끝] 게임 UI 컨트롤 생성 
 
-        // [시작] 패널 ui 어둡게 
-        private void AddDarkOverlay(Panel targetPanel)
+        // [시작]중앙 카운트다운 GameStart 레이블 
+        private void ShowCenterText(string text, int fontSize = 48)
         {
-
-            // 기존 오버레이 정리
-            opponentOverlay?.Dispose();
-
-            opponentOverlay = new Panel
-            {
-                Dock = DockStyle.Fill,
-                BackColor = Color.Transparent, // 실제 칠은 Paint에서
-                Enabled = false                // 상대 패널 클릭 못하게 해도 되면 true/false 취향대로
-            };
-
-            opponentOverlay.Paint += (s, e) =>
-            {
-                using (var brush = new SolidBrush(Color.FromArgb(120, 0, 0, 0)))
-                {
-                    e.Graphics.FillRectangle(brush, opponentOverlay.ClientRectangle);
-                }
-            };
-
-            targetPanel.Controls.Add(opponentOverlay);
-            opponentOverlay.BringToFront();
-
-            // 나중에 상대 패널에 컨트롤이 추가돼도 오버레이가 맨 위에 오도록
-            targetPanel.ControlAdded += (s, e) => opponentOverlay.BringToFront();
-            // 크기 바뀌면 다시 칠하기
-            targetPanel.SizeChanged += (s, e) => opponentOverlay.Invalidate();
+            centerLabel.Font = new Font("Impact", fontSize, FontStyle.Bold);
+            centerLabel.Text = text;
+            centerLabel.Visible = true;
+            centerLabel.BringToFront();
         }
-        // [끝] 패널 ui 어둡게 
+
+        private void HideCenterText()
+        {
+            centerLabel.Visible = false;
+        }
+        // [끝]중앙 카운트다운 GameStart 레이블 
 
         // [시작] 본인 패널에 테두리 
         private void StyleMyPanelWithBadge(Panel p)
@@ -532,6 +537,7 @@ namespace SpaceShooter
         //Start Timers 
         private void StartTimers()
         {
+            label1.Visible = false;
             MoveBgTimer.Start();
             MoveEnemiesTimer.Start();
             MoveMunitionTimer.Start();
@@ -796,21 +802,19 @@ namespace SpaceShooter
 
             for (int i = 5; i >= 1; i--)
             {
-                label1.Text = i.ToString();
-                label1.Visible = true;
+                ShowCenterText(i.ToString(), 64);
                 await Task.Delay(1000);
             }
 
-            label1.Text = "Game Start";
-            await Task.Delay(1000);
-            label1.Visible = false;
+            ShowCenterText("GAME START", 40);
+            await Task.Delay(800);
+            HideCenterText();
 
             // 실제 게임 시작
             StartTimers();
             playing = true;
 
             // 포커스 주기(키 입력 먹게)
-            var myPanel = (role == 1) ? splitContainer1.Panel1 : splitContainer1.Panel2;
             myPanel.Focus();
         }
         //[끝] ready버튼 클릭시 게임시작 
@@ -938,6 +942,16 @@ namespace SpaceShooter
                 {
                     myMunitions[i].Visible = false;
                     myMunitions[i].Location = new Point(myPlayer.Location.X + 20, myPlayer.Location.Y - i * 30);
+                }
+                if (opponentMunitions[i].Top > 0)
+                {
+                    opponentMunitions[i].Visible = true;
+                    opponentMunitions[i].Top -= munitionSpeed;
+                }
+                else
+                {
+                    opponentMunitions[i].Visible= false;
+                    opponentMunitions[i].Location = new Point(opponentPlayer.Location.X + 20, opponentPlayer.Location.Y - i * 30);
                 }
             }
 
