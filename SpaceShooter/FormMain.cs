@@ -928,7 +928,7 @@ namespace SpaceShooter
         // 플레이어에서 총알 나감. 
         private void MoveMunitionTimer_Tick(object sender, EventArgs e)
         {
-            shootgMedia.controls.play();
+            // shootgMedia.controls.play();
             for (int i = 0; i < myMunitions.Length; i++)
             {
                 if (myMunitions[i].Top > 0)
@@ -942,6 +942,7 @@ namespace SpaceShooter
                 {
                     myMunitions[i].Visible = false;
                     myMunitions[i].Location = new Point(myPlayer.Location.X + 20, myPlayer.Location.Y - i * 30);
+                    shootgMedia.controls.play();
                 }
                 if (opponentMunitions[i].Top > 0)
                 {

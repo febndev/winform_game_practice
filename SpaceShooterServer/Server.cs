@@ -117,6 +117,7 @@ namespace SpaceShooterServer
             ClientState myClientState = null;
             try
             {
+                client.NoDelay = true;
                 NetworkStream stream = client.GetStream();
 
                 // 1) 접속 순서대로 Role 할당 및 초기 State 생성/저장
@@ -216,7 +217,7 @@ namespace SpaceShooterServer
                         myClientState.State = incoming;
                     }
 
-                    Console.WriteLine($"수신(Role {incoming.Role}): Player X={incoming.Player?.X}, Y={incoming.Player?.Y}");
+                    //수신(Role {incoming.Role}): Player X={incoming.Player?.X}, Y={incoming.Player?.Y}");
 
                     // 6) 다른 클라이언트에게 중계 (각 클라이언트로 길이+JSON 전송)
                     ClientState[] snapshot;
@@ -240,7 +241,7 @@ namespace SpaceShooterServer
                             {
                                 // 다른 클라이언트에게는 incoming(State)을 그대로 보냄
                                 await SendStateAsyncToClient(other.Client.GetStream(), incoming).ConfigureAwait(false);
-                                Console.WriteLine($"전달 성공(to Role {other.State?.Role})");
+                                //Console.WriteLine($"전달 성공(to Role {other.State?.Role})");
                             }
                             catch (Exception ex)
                             {

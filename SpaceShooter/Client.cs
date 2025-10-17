@@ -13,7 +13,7 @@ namespace SpaceShooter
         private TcpClient client;
         private NetworkStream stream;
 
-        private readonly string serverIP = "127.0.0.1";
+        private readonly string serverIP = "10.10.21.101";
         private readonly int port = 8080;
 
         // 마지막으로 받은 상태
@@ -40,7 +40,7 @@ namespace SpaceShooter
             try
             {
                 await client.ConnectAsync(serverIP, port).ConfigureAwait(false); // 비동기
-
+                client.NoDelay = true;
                 //Console.WriteLine("서버에 연결 성공!");
                 stream = client.GetStream();
 
