@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using WMPLib;
 using SpaceShooterShared;
+using System.Drawing.Drawing2D;
+
 
 namespace SpaceShooter
 {
@@ -22,6 +24,7 @@ namespace SpaceShooter
         // 디자이너에 올려둔 player1, player2 존재 (Name: player1, player2)
         private Panel myPanel;
         private Panel opponentPanel;
+        private Panel opponentOverlay;
 
         private PictureBox myPlayer;         // 내 화면의 플레이어 (디자이너의 player1/2 중 하나)
         private PictureBox opponentPlayer;   // 상대 화면의 플레이어
@@ -39,7 +42,17 @@ namespace SpaceShooter
         private PictureBox[] myEnemiesMunition;
         private PictureBox[] opponentEnemiesMunition;
 
+        // [시작] ready 버튼 
+        private bool myReady = false;
+        private bool otherReady = false;
+        private bool playing = false;
+        private bool countingDown = false;
+        // [끝] ready 버튼 
+
         // --- 게임 파라미터 ---
+
+        private int myHealth = 1; // 1 살아있음 0 죽었음 
+
         int enemiesMunitionSpeed = 4;
         int backgroundspeed = 4;
         int playerSpeed = 4;
@@ -87,6 +100,8 @@ namespace SpaceShooter
             myPanel = (role == 1) ? splitContainer1.Panel1 : splitContainer1.Panel2;
             opponentPanel = (role == 1) ? splitContainer1.Panel2 : splitContainer1.Panel1;
             myPanel.Font = this.Font;
+            StyleMyPanelWithBadge(myPanel);
+
 
             // 디자이너에 올려둔 player1/player2의 Parent를 적절히 설정 (이미 Form 디자이너에 존재)
             myPlayer = (role == 1) ? player1 : player2;
@@ -103,7 +118,7 @@ namespace SpaceShooter
             InitGameObjects(myPanel, opponentPanel);
 
             // 상대 패널을 반투명하게 덮기
-            AddDarkOverlay(opponentPanel);
+            //AddDarkOverlay(opponentPanel);
 
             // 점수 레이블, 버튼 등 myPanel에 띄우기 
             AttachHudTo(myPanel);
@@ -129,6 +144,19 @@ namespace SpaceShooter
                         UpdateUI(state);
                 };
             }
+
+            // [시작] ready 버튼 
+            StopTimers();                 // 시작 전엔 모두 멈춤
+            playing = false;
+            countingDown = false;
+            myReady = otherReady = false;
+
+            ReplayBtn.Text = "READY";
+            ReplayBtn.Visible = true;
+            ReplayBtn.Enabled = true;
+
+            label1.Visible = false;       // 카운트다운/문구 라벨로 재활용
+            // [끝] ready 버튼 
         }
         private void InitMediaPlayers()
         {
@@ -302,19 +330,85 @@ namespace SpaceShooter
         // [시작] 패널 ui 어둡게 
         private void AddDarkOverlay(Panel targetPanel)
         {
-            Panel overlay = new Panel
+
+            // 기존 오버레이 정리
+            opponentOverlay?.Dispose();
+
+            opponentOverlay = new Panel
             {
-                BackColor = Color.FromArgb(30, 0, 0, 0), // 반투명 검정색 (120=불투명도)
                 Dock = DockStyle.Fill,
-                Enabled = false // 클릭 등 이벤트 통과하게 함
+                BackColor = Color.Transparent, // 실제 칠은 Paint에서
+                Enabled = false                // 상대 패널 클릭 못하게 해도 되면 true/false 취향대로
             };
-            targetPanel.Controls.Add(overlay);
-            overlay.BringToFront();
+
+            opponentOverlay.Paint += (s, e) =>
+            {
+                using (var brush = new SolidBrush(Color.FromArgb(120, 0, 0, 0)))
+                {
+                    e.Graphics.FillRectangle(brush, opponentOverlay.ClientRectangle);
+                }
+            };
+
+            targetPanel.Controls.Add(opponentOverlay);
+            opponentOverlay.BringToFront();
+
+            // 나중에 상대 패널에 컨트롤이 추가돼도 오버레이가 맨 위에 오도록
+            targetPanel.ControlAdded += (s, e) => opponentOverlay.BringToFront();
+            // 크기 바뀌면 다시 칠하기
+            targetPanel.SizeChanged += (s, e) => opponentOverlay.Invalidate();
         }
         // [끝] 패널 ui 어둡게 
 
+        // [시작] 본인 패널에 테두리 
+        private void StyleMyPanelWithBadge(Panel p)
+        {
+            // 빨간 테두리: Paint/Resize에 연결
+            p.Paint -= MyPanel_Paint;
+            p.Paint += MyPanel_Paint;
+            p.Resize -= MyPanel_Resize;
+            p.Resize += MyPanel_Resize;
 
-        // Timer_Tick 은 맨 밑으로 이동시키자 
+            // “YOU” 배지 한 번만 추가
+            var existing = p.Controls.OfType<Label>()
+                             .FirstOrDefault(l => (string)l.Tag == "YOU_BADGE");
+            if (existing == null)
+            {
+                var badge = new Label
+                {
+                    Text = "YOU",
+                    AutoSize = true,
+                    ForeColor = Color.White,
+                    BackColor = Color.Red,
+                    Font = new Font(this.Font, FontStyle.Bold),
+                    Padding = new Padding(8, 2, 8, 2),
+                    Location = new Point(272, 8),
+                    Tag = "YOU_BADGE"
+                };
+                p.Controls.Add(badge);
+                badge.BringToFront();
+            }
+
+            p.Invalidate(); // 바로 그리기
+        }
+
+        private void MyPanel_Paint(object sender, PaintEventArgs e)
+        {
+            var p = (Panel)sender;
+            using (var pen = new Pen(Color.Red, 3))
+            {
+                pen.Alignment = PenAlignment.Inset;           // 안쪽으로 그려서 잘림 방지
+                e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                var r = new Rectangle(0, 0, p.ClientSize.Width - 1, p.ClientSize.Height - 1);
+                e.Graphics.DrawRectangle(pen, r);
+            }
+        }
+
+        private void MyPanel_Resize(object sender, EventArgs e)
+        {
+            ((Panel)sender).Invalidate(); // 크기 바뀌면 테두리 다시 그림
+        }
+
+        // [끝] 본인 패널에 테두리 
         // [시작] 내 비행기 충돌시 로직
         private void Collision()
         {
@@ -358,8 +452,9 @@ namespace SpaceShooter
                 {
                     explosionMedia.settings.volume = 30;
                     explosionMedia.controls.play();
+                    myHealth = 0;
                     myPlayer.Visible = false;
-                    GameOver("GameOver");
+                    GameOver("YOU LOSE");
                 }
             }
         }
@@ -395,7 +490,9 @@ namespace SpaceShooter
                     explosionMedia.settings.volume = 30;
                     explosionMedia.controls.play();
                     myPlayer.Visible = false;
-                    GameOver("Game Over");
+                    myHealth = 0;
+                    GameOver("YOU LOSE");
+
                 }
             }
         }
@@ -403,13 +500,23 @@ namespace SpaceShooter
         private void GameOver(String str)
         {
             label1.Text = str;
-            label1.Location = new Point(120, 120);
+            label1.Location = new Point(169, 98);
             label1.Visible = true;
             ReplayBtn.Visible = true;
             ExitBtn.Visible = true;
 
+            gameIsOver = true;
             gameMedia.controls.stop();
             StopTimers();
+
+            // ready 버튼 , replay버튼 분기 처리를 위함. 
+            playing = false;
+            countingDown = false;
+            myReady = false;
+            otherReady = false;
+
+            ReplayBtn.Text = "REPLAY";   // ★ 게임오버 모드로 확실히 전환
+            ReplayBtn.Enabled = true;    // 혹시 비활성화돼 있었다면 복구
         }
         // Stop Timers
         private void StopTimers()
@@ -418,6 +525,8 @@ namespace SpaceShooter
             MoveEnemiesTimer.Stop();
             MoveMunitionTimer.Stop();
             EnemiesMunitionTimer.Stop();
+            // 추가 
+            // SendStateTimer.Stop();
         }
 
         //Start Timers 
@@ -427,6 +536,8 @@ namespace SpaceShooter
             MoveEnemiesTimer.Start();
             MoveMunitionTimer.Start();
             EnemiesMunitionTimer.Start();
+            // 추가 
+            SendStateTimer.Start();
         }
 
         // HUD를 내가 조종하는 패널로 이동
@@ -468,7 +579,7 @@ namespace SpaceShooter
             levellbl.Location = new Point(536, levelTitle.Top);
 
             // 중앙 안내 라벨/버튼(게임오버/리플레이용)도 내 패널 기준으로
-            label1.Location = new Point(myPanel.Width / 2 - 80, myPanel.Height / 2 - 40);
+            label1.Location = new Point(169,98);
             ReplayBtn.Location = new Point(175, 211);
             ExitBtn.Location = new Point(175, 279);
         }
@@ -482,13 +593,13 @@ namespace SpaceShooter
             {
                 playerState.X = player1.Left;
                 playerState.Y = player1.Top;
-                playerState.Health = 100; // 실제 체력 값으로 바꿔야함. 
+                playerState.Health = myHealth; // 1 - 살아있음 0 - 죽었음  
             }
             else
             {
                 playerState.X = player2.Left;
                 playerState.Y = player2.Top;
-                playerState.Health = 100; // 실제 체력 값으로 바꿔야함. 
+                playerState.Health = myHealth;  
             }    
 
             // 적 상태 생성
@@ -541,6 +652,11 @@ namespace SpaceShooter
 
         public void UpdateUI(State state)
         {
+
+            //otherReady = true;
+            //if (myReady && !playing && !countingDown)
+            //    _ = RunCountdownAndStartAsync();
+            // Ready 패킷이니 여기서 return 해도 됨(선택)
             if (state == null || this.IsDisposed) return;
 
             // 항상 UI 스레드에서 실행되도록 보장
@@ -549,6 +665,20 @@ namespace SpaceShooter
                 this.BeginInvoke(new Action(() => UpdateUI(state)));
                 return;
             }
+
+            // --- [추가 1] READY 같은 컨트롤 패킷은 여기서 처리 후 UI엔티티 업데이트 스킵 ---
+            if (state.Ready && state.Role != this.role)
+            {
+                otherReady = true;
+                if (myReady && !playing && !countingDown)
+                    _ = RunCountdownAndStartAsync();
+                return; // ← Player/Enemies 접근하지 말고 바로 리턴
+            }
+
+            // --- [추가 2] 일반 안전 널 가드 ---
+            var hasPlayer = (state.Player != null);
+            var enemies = state.Enemies ?? new List<Enemy>();
+
             // Form1_Load 와 중복 선언중이어서 class 멤버로 선언하고 Form1_Load에서 초기화하는걸로 변경 
             //Panel myPanel = (role == 1) ? splitContainer1.Panel1 : splitContainer1.Panel2;
             //Panel opponentPanel = (role == 1) ? splitContainer1.Panel2 : splitContainer1.Panel1;
@@ -560,6 +690,30 @@ namespace SpaceShooter
                 focusSet = true;
             }
 
+            // === [추가] 승패 판정 (최소 수정) ===
+            // 1) 상대 패킷: 상대 Health <= 0 → 내 화면 승리
+            if (state.Role != role && hasPlayer && !gameIsOver)
+            {
+                if (state.Player.Health <= 0)
+                {
+                    // 동시 사망 케이스까지 커버하고 싶으면 myHealth 비교
+                    if (myHealth <= 0) GameOver("DRAW");
+                    else GameOver("YOU WIN");
+                    return; // 이 틱에서는 더 이상 UI 업데이트 불필요
+                }
+            }
+
+            // 2) 내 패킷(에코): 내 Health <= 0 → 보조 안전 장치로 패배 처리
+            //    (일반적으로는 충돌 처리 시점에서 이미 GameOver("YOU LOSE") 호출함)
+            if (state.Role == role && hasPlayer && !gameIsOver)
+            {
+                if (state.Player.Health <= 0)
+                {
+                    GameOver("YOU LOSE");
+                    return;
+                }
+            }
+
             if (state.Role == role)
             {
                 // --- 내 화면 업데이트 (내 플레이어, 내 적들) ---
@@ -568,6 +722,10 @@ namespace SpaceShooter
 
                 // Enemies: 서버가 보내는 내 적들(게임 내 적들)을 동기화
                 SyncEnemiesDictionary(myEnemies, state.Enemies, myPanel);
+                if (state.Player != null && state.Player.Health <= 0 && !gameIsOver)
+                {
+                    GameOver("YOU WIN");  // 상대가 죽었으면 내 화면 승리 처리
+                }
             }
             else
             {
@@ -579,9 +737,14 @@ namespace SpaceShooter
             }
         }
 
+        
+
         // 엔티티 딕셔너리 동기화: 존재하지 않으면 생성, 존재하면 위치 갱신, 서버에 없으면 제거
         private void SyncEnemiesDictionary(Dictionary<int, PictureBox> dict, List<Enemy> states, Panel parentPanel)
         {
+            if (dict == null || parentPanel == null || states == null) return; // ← [추가]
+            if (states.Count == 0) return; // ★ 빈 업데이트 오면 아무것도 건드리지 않음
+
             var existingIds = new HashSet<int>(dict.Keys);
 
             foreach (var e in states)
@@ -625,6 +788,32 @@ namespace SpaceShooter
         }
         // [끝] 서버에서 받은 State, UI에 반영
 
+        // [시작] ready버튼 클릭시 게임시작 
+        private async Task RunCountdownAndStartAsync()
+        {
+            countingDown = true;
+            ReplayBtn.Visible = false;
+
+            for (int i = 5; i >= 1; i--)
+            {
+                label1.Text = i.ToString();
+                label1.Visible = true;
+                await Task.Delay(1000);
+            }
+
+            label1.Text = "Game Start";
+            await Task.Delay(1000);
+            label1.Visible = false;
+
+            // 실제 게임 시작
+            StartTimers();
+            playing = true;
+
+            // 포커스 주기(키 입력 먹게)
+            var myPanel = (role == 1) ? splitContainer1.Panel1 : splitContainer1.Panel2;
+            myPanel.Focus();
+        }
+        //[끝] ready버튼 클릭시 게임시작 
 
         // [시작] Timer_Tick 이벤트 핸들러 모음 
         private void MoveBgTimer_Tick(object sender, EventArgs e)
@@ -790,8 +979,24 @@ namespace SpaceShooter
             catch { }
         }
 
-        private void ReplayBtn_Click_1(object sender, EventArgs e)
+        private async void ReplayBtn_Click_1(object sender, EventArgs e)
         {
+            // --- 로비(READY) 역할 ---
+            if (string.Equals(ReplayBtn.Text, "READY", StringComparison.OrdinalIgnoreCase))
+            {
+                // 로비에서 READY 누른 경우
+                myReady = true;
+                ReplayBtn.Enabled = false;
+                label1.Text = "Stand by";
+                label1.Visible = true;
+
+                await Packet.SendStateAsync(client.Stream, new State { Role = role, Ready = true });
+
+                if (otherReady) _ = RunCountdownAndStartAsync(); // 상대가 이미 준비면 즉시 카운트다운
+                return;
+            }
+
+            // --- 게임오버 (REPLAY) 역할 ---
             // 상태값 초기화
             score = 0;
             level = 1;
@@ -806,7 +1011,20 @@ namespace SpaceShooter
             // 플레이어/적 재배치
             myPlayer.Visible = true;
             myPlayer.Location = new Point(250, 400);
+            myHealth = 1;
 
+            if (!playing && !countingDown && !myReady) // 로비 단계의 READY 클릭
+            {
+                myReady = true;
+                ReplayBtn.Enabled = false;
+                label1.Text = "Stand by";
+                label1.Visible = true;
+
+                await Packet.SendStateAsync(client.Stream, new State { Role = role, Ready = true });
+
+                if (otherReady) _ = RunCountdownAndStartAsync(); // 상대가 이미 눌렀다면 바로 카운트다운
+                return;
+            }
             foreach (var kvp in myEnemies)
             {
                 var idx = kvp.Key;

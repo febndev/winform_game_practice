@@ -30,6 +30,10 @@ namespace SpaceShooterShared
         public Player Player { get; set; }
         public List<Enemy> Enemies { get; set; } = new List<Enemy>();
 
+        // ready 눌렀을 때 바로 시작하게끔 
+        public bool Ready { get; set; }
+
+
     }
 
 
